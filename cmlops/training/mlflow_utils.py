@@ -84,10 +84,13 @@ def capture_lineage(
     check_dvc_pointer(dataset_path, md5)
 
     with warnings.catch_warnings():
-        # MLflow registers its local-file source twice and warns that the
-        # path is ambiguous between the two
+        # MLflow tries every source type it knows on the path, and warns about
+        # those that cannot handle it and about its local-file source being
+        # registered twice
         warnings.filterwarnings(
-            "ignore", message="The specified dataset source can be interpreted"
+            "ignore",
+            category=UserWarning,
+            module=r"mlflow\.data\.dataset_source_registry",
         )
         dataset = mlflow.data.from_pandas(
             df,
