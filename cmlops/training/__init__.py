@@ -1,7 +1,6 @@
 """Training module for the pipeline."""
 
 from cmlops.training.metrics import evaluate_predictions, rmse, rmse_scorer
-from cmlops.training.mlflow_utils import BestRunInfo, load_best_run
 from cmlops.training.model_factory import (
     KERNEL_REGISTRY,
     MODEL_REGISTRY,
@@ -13,7 +12,6 @@ from cmlops.training.splitter import TrainTestData, prepare_train_test_split, sp
 from cmlops.training.trainer import TrainingResult, train_single_model
 
 __all__ = [
-    "BestRunInfo",
     "KERNEL_REGISTRY",
     "MODEL_REGISTRY",
     "TrainTestData",
@@ -21,7 +19,6 @@ __all__ = [
     "create_model",
     "evaluate_predictions",
     "get_param_grid",
-    "load_best_run",
     "normalize_gpr_best_params",
     "prepare_train_test_split",
     "rmse",

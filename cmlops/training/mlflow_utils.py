@@ -3,28 +3,15 @@
 import json
 import math
 import tempfile
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import mlflow
 import pandas as pd
 from mlflow.models import infer_signature
-from sklearn.base import BaseEstimator
 
 from cmlops.config import PipelineConfig
 from cmlops.training.trainer import TrainingResult
 from cmlops.verification.base import VerificationReport
-
-
-@dataclass
-class BestRunInfo:
-    """Information about the best MLflow run for a model/output combination."""
-
-    model: BaseEstimator
-    best_params: dict[str, Any]
-    model_type: str
-    run_id: str
 
 
 def setup_mlflow(tracking_uri: str, experiment_name: str) -> str:
@@ -195,96 +182,3 @@ def log_experiment_summary(
 
         return run.info.run_id
 
-
-def load_best_run(
-    output_name: str,
-    experiment_name: str,
-    tracking_uri: str = "sqlite:///mlruns.db",
-    model_type: str | None = None,
-    run_id: str | None = None,
-) -> BestRunInfo:
-    """Load the best MLflow run for a given output (and optionally model type).
-
-    If ``run_id`` is provided, loads that specific run directly.
-    Otherwise, searches for the run with the lowest test_rmse matching
-    the given ``output_name`` (and ``model_type`` if specified).
-
-    Args:
-        output_name: Target output name.
-        experiment_name: MLflow experiment name.
-        tracking_uri: MLflow tracking URI.
-        model_type: Optional model type filter (e.g. "RandomForestRegressor").
-        run_id: Optional specific run ID to load.
-
-    Returns:
-        BestRunInfo with loaded model, best hyperparameters, model type, and run ID.
-
-    Raises:
-        ValueError: If no matching runs are found or experiment doesn't exist.
-    """
-    mlflow.set_tracking_uri(tracking_uri)
-
-    if run_id is not None:
-        # Load a specific run
-        run = mlflow.get_run(run_id)
-        loaded_model = mlflow.sklearn.load_model(f"runs:/{run_id}/model")
-        params = run.data.params
-        best_params = {
-            k.removeprefix("best_"): v
-            for k, v in params.items()
-            if k.startswith("best_")
-        }
-        return BestRunInfo(
-            model=loaded_model,
-            best_params=best_params,
-            model_type=params.get("model_type", "unknown"),
-            run_id=run_id,
-        )
-
-    # Search for best run
-    experiment = mlflow.get_experiment_by_name(experiment_name)
-    if experiment is None:
-        raise ValueError(
-            f"Experiment '{experiment_name}' not found. "
-            "Run training first with: cmlops train"
-        )
-
-    filter_parts = [f"params.output_name = '{output_name}'"]
-    if model_type is not None:
-        filter_parts.append(f"params.model_type = '{model_type}'")
-    filter_string = " and ".join(filter_parts)
-
-    runs = mlflow.search_runs(
-        experiment_ids=[experiment.experiment_id],
-        filter_string=filter_string,
-        order_by=["metrics.test_rmse ASC"],
-        max_results=1,
-    )
-
-    if runs.empty:
-        filter_desc = f"output_name='{output_name}'"
-        if model_type:
-            filter_desc += f", model_type='{model_type}'"
-        raise ValueError(
-            f"No runs found matching {filter_desc} in experiment '{experiment_name}'. "
-            "Run training first with: cmlops train"
-        )
-
-    best_run_id = runs.iloc[0]["run_id"]
-    loaded_model = mlflow.sklearn.load_model(f"runs:/{best_run_id}/model")
-
-    # Extract best_* params
-    run = mlflow.get_run(best_run_id)
-    params = run.data.params
-    best_params = {
-        k.removeprefix("best_"): v
-        for k, v in params.items()
-        if k.startswith("best_")
-    }
-
-    return BestRunInfo(
-        model=loaded_model,
-        best_params=best_params,
-        model_type=params.get("model_type", "unknown"),
-        run_id=best_run_id,
-    )
