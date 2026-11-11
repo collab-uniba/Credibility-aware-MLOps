@@ -131,6 +131,7 @@ bonestrength_ml/
         verify.py           # Runs the configured checks on a winning model
         convergence.py      # Adapter for the vv4ml convergence test
         smoothness.py       # Adapter for the vv4ml smoothness test
+        numerical_error.py  # Adapter for the vv4ml numerical error test
     workflows/          # Prefect orchestration
         tasks.py            # Prefect tasks
         flows.py            # Training flows (parallel execution)

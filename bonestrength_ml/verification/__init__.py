@@ -16,6 +16,7 @@ from bonestrength_ml.verification.base import (
     VerificationReport,
 )
 from bonestrength_ml.verification.convergence import convergence_check
+from bonestrength_ml.verification.numerical_error import numerical_error_check
 from bonestrength_ml.verification.registry import (
     get_check,
     iter_enabled_checks,
@@ -32,6 +33,7 @@ __all__ = [
     "convergence_check",
     "get_check",
     "iter_enabled_checks",
+    "numerical_error_check",
     "register",
     "run_full_verification",
     "smoothness_check",
