@@ -166,33 +166,12 @@ class TrainTestSplitConfig(BaseModel):
         return self
 
 
-class PreprocessingConfig(BaseModel):
-    """Preprocessing configuration."""
-
-    normalization: bool = False
-    standardization: bool = False
-
-
 class OptimizationConfig(BaseModel):
     """Optimization configuration for hyperparameter tuning."""
 
-    feature_selection: str | None = None
     optimization_method: Literal["GridSearch", "RandomizedSearchCV"] = "GridSearch"
     n_jobs: int = -1
     cv: int = 5
-    scoring: str | None = None
-
-    @field_validator("feature_selection", "scoring", mode="before")
-    @classmethod
-    def coerce_none_string(cls, v: Any) -> Any:
-        """Treat the YAML strings "None"/"null" as missing values.
-
-        YAML only parses ``null``/``~`` as None, so a config written as
-        ``scoring: None`` would otherwise become the literal string "None".
-        """
-        if isinstance(v, str) and v.strip().lower() in ("none", "null"):
-            return None
-        return v
 
 
 class ModelConfig(BaseModel):
@@ -224,7 +203,6 @@ class ModelBuildingConfig(BaseModel):
     """Model building configuration."""
 
     train_test_split: TrainTestSplitConfig
-    preprocessing: PreprocessingConfig
     optimization: OptimizationConfig
     model_list: list[ModelConfig]
 
