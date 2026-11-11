@@ -531,16 +531,16 @@ verification:
       parameters:
         sample_fraction: 0.4
         perturbation_scaled_magnitude: 0.001
-    # - type: numerical_error
-    #   thresholds:
-    #     - field: maxStrain_11
-    #       metric: MaxStandardDeviation
-    #       value: 0.0000051
-    #     - field: maxStrain_33
-    #       metric: MaxStandardDeviation
-    #       value: 0.0000073
-    #   parameters:
-    #     sets: 10
+    - type: numerical_error
+      thresholds:
+        - field: maxStrain_11
+          metric: MaxStandardDeviation
+          value: 0.00089
+        - field: maxStrain_33
+          metric: MaxStandardDeviation
+          value: 0.0020
+      parameters:
+        sets: 10
     # - type: existence
     #   thresholds: []
     #   parameters:
