@@ -177,7 +177,7 @@ The paper is in preparation. Its reference and the DOI of the archived version o
 
 ## License
 
-The code is released under the [MIT License](LICENSE). The terms of use of the dataset in `data/raw/` will be stated once its provenance is documented.
+The code is released under the [MIT License](LICENSE).
 
 ## Project structure
 
