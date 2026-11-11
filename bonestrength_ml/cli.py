@@ -14,6 +14,13 @@ app = typer.Typer(
 console = Console()
 
 
+def _validate_cpu_fraction(value: float) -> float:
+    """Reject CPU fractions outside (0, 1]."""
+    if not 0 < value <= 1:
+        raise typer.BadParameter("must be greater than 0 and at most 1")
+    return value
+
+
 @app.command()
 def train(
     config: Optional[str] = typer.Option(
@@ -60,6 +67,7 @@ def train(
     max_workers: int = typer.Option(
         2,  # keep in sync with flows.DEFAULT_MAX_WORKERS
         "--max-workers",
+        min=1,
         help="How many models to train concurrently. Per-search n_jobs is sized "
         "so max_workers x n_jobs stays within --cpu-fraction of the CPUs, "
         "avoiding oversubscription. Ignored with --model (single inline run).",
@@ -67,8 +75,11 @@ def train(
     cpu_fraction: float = typer.Option(
         0.9,  # keep in sync with flows.DEFAULT_CPU_FRACTION
         "--cpu-fraction",
-        help="Fraction of available CPUs the whole run may use (default 0.9 "
-        "leaves headroom for other activity).",
+        callback=_validate_cpu_fraction,
+        help="Fraction of available CPUs the hyperparameter searches may use "
+        "together (default 0.9 leaves headroom for other activity). Verification "
+        "is not covered: it retrains models with each library's default threading. "
+        "Ignored with --model.",
     ),
 ) -> None:
     """Run the training + verification pipeline.

@@ -74,6 +74,18 @@ bsml train --skip-verification
 The specific-model debug path (`bsml train --output X --model Y`) trains
 only — no verification, no registration.
 
+Training runs several models at once, and each model's hyperparameter search
+is itself parallel. Two options size both levels so that together they stay
+within a share of the machine's CPUs:
+
+```bash
+bsml train --max-workers 4 --cpu-fraction 0.5
+```
+
+`--max-workers` (default 2) is the number of models trained concurrently;
+`--cpu-fraction` (default 0.9) is the share of the available CPUs the searches
+may use together. Verification is not covered by this budget.
+
 ### Viewing Results
 
 Start the MLflow UI to explore experiment results:

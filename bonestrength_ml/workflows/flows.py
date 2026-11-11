@@ -1,9 +1,9 @@
 """Prefect flows for BoneStrengthML training + verification pipeline."""
 
-import os
 from pathlib import Path
 
 import pandas as pd
+from joblib import cpu_count
 from prefect import flow
 from prefect.futures import PrefectFuture
 from prefect.task_runners import ThreadPoolTaskRunner
@@ -23,27 +23,23 @@ from bonestrength_ml.workflows.tasks import (task_load_config, task_load_data,
 # overridable per run via the CLI ``--max-workers`` flag.
 DEFAULT_MAX_WORKERS = 2
 
-# Fraction of available CPUs the whole training run is allowed to use. Leaves
-# headroom so the machine stays responsive for other work.
+# Fraction of available CPUs the concurrent hyperparameter searches are allowed
+# to use together. Leaves headroom so the machine stays responsive for other
+# work. Verification is not covered by this budget: it retrains models through
+# vv4ml, with each library's default threading.
 DEFAULT_CPU_FRACTION = 0.9
 
 
-def _available_cpus() -> int:
-    """Number of CPUs actually usable by this process.
-
-    Prefers the CPU-affinity set (honours cgroup / scheduler limits inside
-    containers); falls back to the logical core count. Recomputed each run, so
-    the budget adapts automatically when the workload moves to another server.
-    """
-    try:
-        return len(os.sched_getaffinity(0))  # Linux: threads actually allowed
-    except AttributeError:
-        return os.cpu_count() or 1
-
-
 def _cpu_budget(cpu_fraction: float = DEFAULT_CPU_FRACTION) -> int:
-    """Total worker-process budget for the run (e.g. 96 threads * 0.9 = 86)."""
-    return max(1, int(_available_cpus() * cpu_fraction))
+    """Worker-process budget for the training searches (e.g. 96 CPUs * 0.9 = 86).
+
+    ``joblib.cpu_count`` reports the CPUs this process may actually use (CPU
+    affinity and container CPU quotas included). Recomputed each run, so the
+    budget adapts automatically when the workload moves to another server.
+    """
+    if not 0 < cpu_fraction <= 1:
+        raise ValueError(f"cpu_fraction must be in (0, 1], got {cpu_fraction}")
+    return max(1, int(cpu_count() * cpu_fraction))
 
 
 def _inner_n_jobs(
@@ -54,6 +50,8 @@ def _inner_n_jobs(
     This keeps the two nested levels of parallelism (concurrent training tasks x
     parallel CV search) from oversubscribing the CPU.
     """
+    if max_workers < 1:
+        raise ValueError(f"max_workers must be at least 1, got {max_workers}")
     return max(1, _cpu_budget(cpu_fraction) // max_workers)
 
 
@@ -187,7 +185,7 @@ def train_all_outputs_flow(
         f"\nSubmitting {len(config.model_building.model_list)} models x "
         f"{len(all_split_data)} outputs for parallel training "
         f"(max_workers={max_workers}, n_jobs/search={n_jobs_override}, "
-        f"cpu_budget={_cpu_budget(cpu_fraction)} of {_available_cpus()})..."
+        f"cpu_budget={_cpu_budget(cpu_fraction)} of {cpu_count()})..."
     )
     futures: list[tuple[str, str, PrefectFuture]] = []
     for output_name, data in all_split_data.items():

@@ -1,10 +1,10 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.11"
 resolution-markers = [
-    "python_full_version < '3.12'",
-    "python_full_version == '3.12.*'",
     "python_full_version >= '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
 ]
 
 [[package]]
@@ -181,6 +181,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "catboost" },
+    { name = "joblib" },
     { name = "mlflow" },
     { name = "nbformat" },
     { name = "pandas" },
@@ -198,6 +199,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "catboost", specifier = ">=1.2.10" },
+    { name = "joblib", specifier = ">=1.3" },
     { name = "mlflow", specifier = ">=2.10.0" },
     { name = "nbformat", specifier = ">=5.10.4" },
     { name = "pandas", specifier = ">=2.0" },
