@@ -125,9 +125,12 @@ bonestrength_ml/
         splitter.py         # Train/test splitting
         trainer.py          # Hyperparameter optimization
         mlflow_utils.py     # MLflow integration
-    verification/       # Verification tests
-        convergence.py      # Convergence test across training set sizes
-        latin_hypercube.py  # Latin Hypercube sampling for input space coverage
+    verification/       # Verification tests (implemented by the vv4ml library)
+        base.py             # Check interface, context, result and report
+        registry.py         # Maps YAML test types to checks
+        verify.py           # Runs the configured checks on a winning model
+        convergence.py      # Adapter for the vv4ml convergence test
+        smoothness.py       # Adapter for the vv4ml smoothness test
     workflows/          # Prefect orchestration
         tasks.py            # Prefect tasks
         flows.py            # Training flows (parallel execution)

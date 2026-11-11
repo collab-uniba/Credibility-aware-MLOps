@@ -36,24 +36,6 @@ def max_absolute_error(y_true: ArrayLike, y_pred: ArrayLike) -> float:
     return float(np.max(np.abs(np.asarray(y_true) - np.asarray(y_pred))))
 
 
-def mean_relative_error(y_pred: ArrayLike, y_ref: ArrayLike) -> float:
-    """Calculate Mean Relative Error between predictions and reference values.
-
-    Used in convergence tests to compare subset-trained model predictions
-    against a reference (fully-trained) model's predictions.
-
-    Args:
-        y_pred: Predicted values from the subset-trained model.
-        y_ref: Reference predictions from the fully-trained model.
-
-    Returns:
-        Mean relative error as a fraction (e.g. 0.05 = 5%).
-    """
-    y_pred_arr = np.asarray(y_pred)
-    y_ref_arr = np.asarray(y_ref)
-    return float(np.mean(np.abs((y_pred_arr - y_ref_arr) / y_ref_arr)))
-
-
 # Scorer for GridSearchCV (negative because sklearn maximizes)
 rmse_scorer = make_scorer(rmse, greater_is_better=False)
 
