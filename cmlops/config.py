@@ -112,10 +112,19 @@ class ThresholdCriterion(BaseModel):
     value: float
 
 
-class GateThresholds(BaseModel):
-    """Gate thresholds for validation."""
+class AccuracyCriterion(ThresholdCriterion):
+    """An acceptance threshold on a test metric of a model.
 
-    validation: list[ThresholdCriterion]
+    Limited to the metrics the pipeline computes on the test set.
+    """
+
+    metric: Literal["MaximumAbsoluteError", "RMSE"]
+
+
+class GateThresholds(BaseModel):
+    """Acceptance thresholds on model accuracy, checked before registration."""
+
+    validation: list[AccuracyCriterion]
 
 
 # =============================================================================

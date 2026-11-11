@@ -14,6 +14,7 @@ from mlflow.models import infer_signature
 
 from cmlops.config import PROJECT_ROOT, PipelineConfig, resolve_config_path
 from cmlops.data_loading import check_dvc_pointer, file_md5, resolve_dataset_path
+from cmlops.training.acceptance import AccuracyAssessment, assess_accuracy
 from cmlops.training.trainer import TrainingResult
 from cmlops.verification.base import VerificationReport
 
@@ -164,7 +165,7 @@ def log_training_result(
     """Log a training result to MLflow as a new run.
 
     Returns the new run's id. Registration is a separate step (see
-    ``register_run_model``) gated on verification outcomes.
+    ``register_run_model``) gated on the accuracy and verification outcomes.
     """
     run_name = run_name or f"{result.model_label}_{result.output_name}"
 
@@ -197,6 +198,10 @@ def log_training_result(
         for metric_name, value in result.train_metrics.items():
             mlflow.log_metric(f"train_{metric_name}", value)
 
+        log_accuracy_assessment(
+            assess_accuracy(result.test_metrics, result.output_name, config)
+        )
+
         # Log model with signature
         signature = infer_signature(X_sample, result.best_estimator.predict(X_sample))
 
@@ -216,6 +221,22 @@ def log_training_result(
                 mlflow.log_artifact(str(cv_path), artifact_path="cv_results")
 
         return run.info.run_id
+
+
+def log_accuracy_assessment(assessment: AccuracyAssessment) -> None:
+    """Record on the active run how its model fares against the acceptance thresholds.
+
+    Writes, next to the ``test_{metric}`` metrics they refer to:
+      - params ``accuracy.{metric}.threshold`` (one per criterion)
+      - tags   ``accuracy.{metric}`` = "pass"/"fail" and ``accuracy.status``
+        ("passed", "failed", or "not_assessed" when the output has no criterion)
+    """
+    for outcome in assessment.outcomes:
+        mlflow.log_param(f"accuracy.{outcome.metric}.threshold", outcome.threshold)
+        mlflow.set_tag(
+            f"accuracy.{outcome.metric}", "pass" if outcome.passed else "fail"
+        )
+    mlflow.set_tag("accuracy.status", assessment.status)
 
 
 def register_run_model(run_id: str, model_name: str) -> str:
@@ -290,6 +311,9 @@ def log_experiment_summary(
                 "test_r2": r.test_metrics["r2"],
                 "test_mae": r.test_metrics["mae"],
                 "test_max_ae": r.test_metrics["max_ae"],
+                "accuracy_status": assess_accuracy(
+                    r.test_metrics, r.output_name, config
+                ).status,
             })
 
         summary_df = pd.DataFrame(summary_data)

@@ -9,6 +9,7 @@ from prefect.futures import PrefectFuture
 from prefect.task_runners import ThreadPoolTaskRunner
 
 from cmlops.config import PipelineConfig
+from cmlops.training.acceptance import assess_accuracy
 from cmlops.training.trainer import TrainingResult
 from cmlops.workflows.tasks import (task_capture_lineage,
                                              task_load_config, task_load_data,
@@ -65,6 +66,10 @@ def _verify_and_register_winners(
 ) -> None:
     """Verify each winner in parallel, then auto-register passing ones.
 
+    A winner is registered if it meets the accuracy thresholds and passes all
+    verification tests. Verification runs on every winner, so its evidence is
+    recorded whatever the accuracy outcome.
+
     ``winners`` maps output_name -> (TrainingResult, run_id).
     """
     verify_futures = {
@@ -87,6 +92,16 @@ def _verify_and_register_winners(
         )
         print(f"  Verification for {output_name}: {status} ({per_test})")
 
+        accuracy = assess_accuracy(result.test_metrics, output_name, config)
+        per_criterion = ", ".join(
+            f"{o.metric}={o.value:.3g} vs threshold {o.threshold:.3g}"
+            for o in accuracy.outcomes
+        )
+        print(
+            f"  Accuracy for {output_name}: {accuracy.status} "
+            f"({per_criterion or 'no threshold declared'})"
+        )
+
         registered = task_register_winner(
             result=result, run_id=run_id, report=report, config=config
         )
@@ -94,7 +109,15 @@ def _verify_and_register_winners(
             model_name = config.registered_model_name(output_name, result.model_label)
             print(f"  Registered: {model_name}")
         else:
-            print(f"  Registration skipped for {output_name} (verification failed)")
+            failed = " and ".join(
+                gate
+                for gate, passed in (
+                    ("accuracy", accuracy.passed),
+                    ("verification", report.all_passed),
+                )
+                if not passed
+            )
+            print(f"  Registration skipped for {output_name} ({failed} failed)")
 
 
 @flow(

@@ -12,6 +12,7 @@ from cmlops.data_loading import (
     get_output_columns,
     load_and_validate_data,
 )
+from cmlops.training.acceptance import assess_accuracy
 from cmlops.training.mlflow_utils import (
     RunLineage,
     capture_lineage,
@@ -180,11 +181,13 @@ def task_register_winner(
     report: VerificationReport,
     config: PipelineConfig,
 ) -> str | None:
-    """Register the model under the winner's run iff all verification tests passed.
+    """Register the model under the winner's run iff it meets the accuracy
+    thresholds and all verification tests passed.
 
     Returns the registered model URI, or ``None`` if registration was skipped.
     """
-    if not report.all_passed:
+    accuracy = assess_accuracy(result.test_metrics, result.output_name, config)
+    if not (accuracy.passed and report.all_passed):
         return None
     model_name = config.registered_model_name(result.output_name, result.model_label)
     return register_run_model(run_id=run_id, model_name=model_name)

@@ -505,7 +505,7 @@ dataset:
 gate_thresholds:
   validation:
     - field: maxStrain_11
-      metric: MaximumAbsoluteError # Or InfinityNorm; TODO: decide on the set of admissible metrics (RMSE, PercentageRMSE, etc.)
+      metric: MaximumAbsoluteError # Infinity norm of the test error; RMSE is also supported
       value: 0.000051
     - field: maxStrain_33
       metric: MaximumAbsoluteError
