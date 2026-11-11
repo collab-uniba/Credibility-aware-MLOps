@@ -28,8 +28,8 @@ mapped to a CLI invocation:
 
 | Flow | CLI invocation | Behavior |
 |------|----------------|----------|
-| `train_all_outputs_flow` | `cmlops train` | Trains every configured model for both output variables, verifies and registers the per-output winners. |
-| `train_single_output_flow` | `cmlops train --output X` | Trains every configured model for one output (`maxStrain_11` or `maxStrain_33`), verifies and registers the winner. |
+| `train_all_outputs_flow` | `cmlops train` | Trains every configured model for every output variable, verifies and registers the per-output winners. |
+| `train_single_output_flow` | `cmlops train --output X` | Trains every configured model for one of the outputs declared in the configuration, verifies and registers the winner. |
 | `train_specific_model_flow` | `cmlops train --output X --model Y` | Trains one model for one output. Debug/retrain shortcut: **no verification, no registration**. |
 
 The first two flows accept `--skip-verification` to stop after training (and
@@ -178,8 +178,9 @@ relying only on the observed data.
 ## MLflow integration
 
 MLflow utilities live in `cmlops/training/mlflow_utils.py`. By default
-tracking uses a local SQLite backend (`sqlite:///mlruns.db`) under the
-`BoneStrengthML` experiment; both are overridable via CLI options.
+tracking uses a local SQLite backend (`sqlite:///mlruns.db`), and the
+experiment is named after `project.name` in the configuration
+(`BoneStrengthML` in the case study); both are overridable via CLI options.
 
 - **One run per trained model.** `task_train_model` logs its own run
   (parameters, train/test metrics, the fitted model with an inferred signature,
@@ -194,7 +195,7 @@ tracking uses a local SQLite backend (`sqlite:///mlruns.db`) under the
   pass/fail tags (`verification.<test>`, `verification.status`), plus the full
   structured report as a `verification/report.json` artifact.
 - **Conditional registration.** `task_register_winner` registers the winner's
-  logged model under the name `BoneStrengthML_{output}_{model_label}` in the
+  logged model under the name `{project.name}_{output}_{model_label}` in the
   MLflow Model Registry, but only if `report.all_passed` is true.
 
 ## CLI
@@ -207,12 +208,15 @@ configured models and their hyperparameter search spaces) and `mlflow-ui`
 
 ## Configuration
 
-Workflows in this project are configuration-driven. A single YAML file,
-`config/BoneStrengthML.yml`, drives all three workflows. It is loaded and
+Workflows in this project are configuration-driven. A single YAML file
+drives all three workflows: by default `config/BoneStrengthML.yml`, the
+configuration of the case study, or the one passed with `--config`. It is loaded and
 validated using **Pydantic** models (`cmlops/config.py`) at the
 beginning of each workflow, so a malformed configuration fails fast. It
 specifies:
 
+- **`project`**: the project name, used as the default MLflow experiment name
+  and as the prefix of registered model names;
 - **`dataset`**: path, CSV format metadata, and the full schema of input/output
   fields (name, type, valid range, units) used for both data validation and
   Latin Hypercube sampling;
@@ -222,7 +226,8 @@ specifies:
   optional per-model optimization override;
 - **`verification`**: the list of verification tests to run, each with its own
   thresholds (per output field) and parameters;
-- **`gate_thresholds`**: validation acceptance criteria per output field.
+- **`gate_thresholds`**: validation acceptance criteria per output field
+  (declared in the configuration, not yet enforced by the pipeline).
 
 ## Data loading and validation
 
@@ -236,12 +241,14 @@ Train/test splitting (`cmlops/training/splitter.py`) supports two
 methods, selected in the configuration:
 
 - **`random`**: plain row-level random split;
-- **`grouped`**: rows are grouped by their `PC_*` values (which identify a
-  patient: the same femur appears in multiple rows under different impact
-  angles), and `GroupShuffleSplit` keeps each patient entirely in either train
-  or test to prevent leakage. During hyperparameter search, cross-validation
-  likewise uses `GroupKFold` so folds respect the same patient boundaries.
-  Note that with this method `train_fraction` applies to *groups*, not rows.
+- **`grouped`**: rows that share the same values in the input fields listed in
+  `train_test_split.group_by` (field names or glob patterns) form a group, and
+  `GroupShuffleSplit` keeps each group entirely in either train or test to
+  prevent leakage. During hyperparameter search, cross-validation likewise
+  uses `GroupKFold` so folds respect the same group boundaries. Note that with
+  this method `train_fraction` applies to *groups*, not rows. In the case
+  study the groups are defined by `PC_*`: the same femur appears in multiple
+  rows under different impact angles.
 
 The same split entry point is reused by the verification tests, guaranteeing
 that verification sees exactly the same train/test partition as training.
