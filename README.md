@@ -175,6 +175,10 @@ The configuration has five sections:
 
 The paper is in preparation. Its reference and the DOI of the archived version of this package will be added here.
 
+## License
+
+The code is released under the [MIT License](LICENSE). The terms of use of the dataset in `data/raw/` will be stated once its provenance is documented.
+
 ## Project structure
 
 ```text
