@@ -62,6 +62,9 @@ cd Credibility-aware-MLOps
 ```bash
 # Install all dependencies (including Prefect)
 uv sync
+
+# Download the case-study dataset from the DVC remote
+uv run dvc pull
 ```
 
 ## 6. Verify Installation

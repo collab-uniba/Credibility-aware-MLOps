@@ -4,15 +4,18 @@ The main architectural dependencies of this project are:
 
 - [Prefect](https://www.prefect.io/) for workflow orchestration
 - [MLflow](https://mlflow.org/) for experiment tracking, model registry, and model serving
+- [DVC](https://dvc.org/) for data versioning
 
 ```mermaid
 architecture-beta
   service cli(server)[CLI cmlops]
   service prefect(server)[Prefect]
   service mlflow(cloud)[MLflow]
+  service dvc(disk)[DVC]
 
   cli:R -- L:prefect
   prefect:R -- L:mlflow
+  prefect:B -- T:dvc
 ```
 
 The pipeline implements a **train → compare → verify → register** lifecycle:
@@ -269,6 +272,19 @@ Data is loaded from CSV and validated using **Pandera**
 dynamically from the dataset section of the configuration: each field gets a
 type, range, and nullability check, the schema is strict (unexpected columns
 fail validation), and duplicate rows are rejected unless explicitly allowed.
+
+### Data versioning
+
+The dataset is tracked with DVC: `dvc add` stores the file in the DVC cache
+and remote, and writes a pointer file (`<dataset>.dvc`) holding its MD5, which
+is committed to git. The pipeline does not call DVC; it relies on the pointer.
+`task_capture_lineage` computes the MD5 of the dataset file that was loaded
+and compares it with the pointer next to the file: if they differ, the file
+corresponds to no recorded version and the task fails with a
+`DataVersionError`. The MD5 is then logged as the dataset digest of every
+MLflow run, so the digest of a run names a data version recorded in git, and
+that version can be restored with `dvc checkout` at the commit of the run. A
+dataset without a pointer is not checked.
 
 Train/test splitting (`cmlops/training/splitter.py`) supports two
 methods, selected in the configuration:

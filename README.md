@@ -13,7 +13,7 @@ The pipeline is demonstrated on a case study: BoneStrengthML, an ML surrogate of
 A single YAML configuration file describes the dataset, the models to train, and the verification tests to run. Given that file, `cmlops train` performs the following steps:
 
 1. **Validate the inputs.** The configuration is validated with Pydantic, and the dataset is validated with a Pandera schema generated from the field specifications in the configuration (types, ranges, missing values, duplicates).
-2. **Identify what the run is produced from**: the dataset version (the MD5 of the dataset file), the configuration file, the git commit of the code, and the random seed.
+2. **Identify what the run is produced from**: the dataset version (the MD5 of the dataset file, which must match the version recorded by DVC), the configuration file, the git commit of the code, and the random seed.
 3. **Split the data** into train and test sets, either row by row or by groups of rows that must stay together.
 4. **Train every configured model for every output**, each with a cross-validated hyperparameter search. Each trained model is logged as an MLflow run, with its lineage and with the outcome of the comparison between its test error and the accuracy thresholds.
 5. **Select a winner per output**: the model with the lowest test RMSE.
@@ -22,7 +22,7 @@ A single YAML configuration file describes the dataset, the models to train, and
 
 A registered model can then be served as a REST API (see [Serving a model](#serving-a-model)).
 
-The steps are orchestrated as [Prefect](https://www.prefect.io/) flows; [MLflow](https://mlflow.org/) provides experiment tracking, the model registry, and model serving. See [docs/workflow-architecture.md](docs/workflow-architecture.md) for the details.
+The steps are orchestrated as [Prefect](https://www.prefect.io/) flows; [MLflow](https://mlflow.org/) provides experiment tracking, the model registry, and model serving; [DVC](https://dvc.org/) versions the dataset. See [docs/workflow-architecture.md](docs/workflow-architecture.md) for the details.
 
 ### Verification tests
 
@@ -47,6 +47,28 @@ The evidence is stored in the MLflow run of the model it refers to, next to the 
 
 Lineage, training record, and accuracy outcome are logged for every trained model; the verification items are logged for the winner of each output, the only model that is verified. A registered model version points to the run it was registered from, and therefore to its evidence.
 
+### Data versioning
+
+The dataset is versioned with DVC. Git tracks a small pointer file, `data/raw/sampleDataset.csv.dvc`, that holds the MD5 of the dataset; the dataset itself is stored in the DVC remote and downloaded with `dvc pull`. A git commit therefore pins the code, the configuration, and the data version together.
+
+The pipeline ties each run to that version in two ways:
+
+- It logs the MD5 of the dataset file it loaded as the dataset digest of the run. The digest of a run is the `md5` field of a pointer committed to git.
+- It refuses to run on a dataset file that differs from its pointer, since such a file corresponds to no recorded version.
+
+To record a new version of the dataset, replace the file and run:
+
+```bash
+dvc add data/raw/sampleDataset.csv
+git add data/raw/sampleDataset.csv.dvc
+git commit -m "Update the dataset"
+dvc push
+```
+
+Update the `dataset.version` label in the configuration in the same commit; it is logged on every run next to the digest. An earlier version is restored by checking out its commit and running `dvc checkout`.
+
+A dataset file without a pointer is not tracked by DVC and is not checked; its MD5 is logged all the same.
+
 ## Installation
 
 ### Prerequisites
@@ -69,6 +91,9 @@ cd Credibility-aware-MLOps
 
 # Install dependencies
 uv sync
+
+# Download the case-study dataset
+uv run dvc pull
 ```
 
 The commands below assume the project environment is active (`source .venv/bin/activate`); otherwise, prefix them with `uv run`.
@@ -144,7 +169,7 @@ runs = mlflow.search_runs(
 print(runs[["tags.mlflow.runName", "metrics.test_max_ae", "tags.mlflow.source.git.commit"]])
 ```
 
-The digest is the MD5 of the dataset file (`md5sum data/raw/sampleDataset.csv`).
+The digest is the MD5 of the dataset file, as recorded in the `md5` field of `data/raw/sampleDataset.csv.dvc`.
 
 ### Serving a model
 
@@ -198,7 +223,7 @@ The case study consists of three files:
 | File | Content |
 |------|---------|
 | [`config/BoneStrengthML.yml`](config/BoneStrengthML.yml) | Pipeline configuration: dataset schema, models and hyperparameter grids, verification tests and thresholds |
-| `data/raw/sampleDataset.csv` | Dataset |
+| `data/raw/sampleDataset.csv` | Dataset, versioned with DVC: git tracks the pointer `data/raw/sampleDataset.csv.dvc`, and `dvc pull` downloads the file |
 | [`docs/Context_of_use.md`](docs/Context_of_use.md) | Context of use of the surrogate, from which the acceptance and verification thresholds are derived |
 
 ## Applying the pipeline to another predictor
@@ -212,7 +237,7 @@ cmlops train --config path/to/your-config.yml
 The configuration has five sections:
 
 - **`project`**: the project name, used as the default MLflow experiment name and as the prefix of registered model names.
-- **`dataset`**: path and format of the CSV file, and the specification of every input and output field (name, type, valid range, units). The ranges are used both for data validation and for sampling the verification points.
+- **`dataset`**: path and format of the CSV file, and the specification of every input and output field (name, type, valid range, units). The ranges are used both for data validation and for sampling the verification points. To version the dataset, track the file with `dvc add` (see [Data versioning](#data-versioning)).
 - **`model_building`**: train/test split, hyperparameter search settings, and the list of models with their hyperparameter grids. Supported model types: random forest, XGBoost, support vector regression, linear regression, multi-layer perceptron, partial least squares, CatBoost, and Gaussian process regression.
 - **`verification`**: the verification tests to run, each with its thresholds per output and its parameters.
 - **`gate_thresholds`**: acceptance thresholds on model accuracy per output, on the maximum absolute error or the RMSE measured on the test set. A model that exceeds a threshold of its output is not registered.
@@ -252,7 +277,8 @@ cmlops/                 # The pipeline
         tasks.py                # Prefect tasks
         flows.py                # Training and verification flows
 config/                 # Case-study configuration
-data/raw/               # Case-study dataset
+data/raw/               # Case-study dataset (DVC pointer; the file is downloaded with `dvc pull`)
+.dvc/                   # DVC configuration
 docs/                   # Workflow architecture, deployment guide, case-study context of use
 notebooks/              # Data loading and validation demo
 ```
