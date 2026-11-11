@@ -9,8 +9,10 @@ from prefect.futures import PrefectFuture
 from prefect.task_runners import ThreadPoolTaskRunner
 
 from cmlops.config import PipelineConfig
+from cmlops.training.acceptance import assess_accuracy
 from cmlops.training.trainer import TrainingResult
-from cmlops.workflows.tasks import (task_load_config, task_load_data,
+from cmlops.workflows.tasks import (task_capture_lineage,
+                                             task_load_config, task_load_data,
                                              task_log_summary,
                                              task_prepare_and_split_data,
                                              task_register_winner,
@@ -64,6 +66,10 @@ def _verify_and_register_winners(
 ) -> None:
     """Verify each winner in parallel, then auto-register passing ones.
 
+    A winner is registered if it meets the accuracy thresholds and passes all
+    verification tests. Verification runs on every winner, so its evidence is
+    recorded whatever the accuracy outcome.
+
     ``winners`` maps output_name -> (TrainingResult, run_id).
     """
     verify_futures = {
@@ -86,6 +92,16 @@ def _verify_and_register_winners(
         )
         print(f"  Verification for {output_name}: {status} ({per_test})")
 
+        accuracy = assess_accuracy(result.test_metrics, output_name, config)
+        per_criterion = ", ".join(
+            f"{o.metric}={o.value:.3g} vs threshold {o.threshold:.3g}"
+            for o in accuracy.outcomes
+        )
+        print(
+            f"  Accuracy for {output_name}: {accuracy.status} "
+            f"({per_criterion or 'no threshold declared'})"
+        )
+
         registered = task_register_winner(
             result=result, run_id=run_id, report=report, config=config
         )
@@ -93,7 +109,15 @@ def _verify_and_register_winners(
             model_name = config.registered_model_name(output_name, result.model_label)
             print(f"  Registered: {model_name}")
         else:
-            print(f"  Registration skipped for {output_name} (verification failed)")
+            failed = " and ".join(
+                gate
+                for gate, passed in (
+                    ("accuracy", accuracy.passed),
+                    ("verification", report.all_passed),
+                )
+                if not passed
+            )
+            print(f"  Registration skipped for {output_name} ({failed} failed)")
 
 
 @flow(
@@ -122,6 +146,7 @@ def train_single_output_flow(
     task_setup_mlflow(mlflow_tracking_uri, experiment_name or config.project.name)
 
     df = task_load_data(config)
+    lineage = task_capture_lineage(df, config, config_path, random_state)
     X, y, split_data = task_prepare_and_split_data(df, config, random_state)
 
     data = split_data[output_name]
@@ -132,6 +157,7 @@ def train_single_output_flow(
             model_config=model_config,
             data=data,
             config=config,
+            lineage=lineage,
             random_state=random_state,
             n_jobs_override=n_jobs_override,
         )
@@ -179,6 +205,7 @@ def train_all_outputs_flow(
     task_setup_mlflow(mlflow_tracking_uri, experiment_name or config.project.name)
 
     df = task_load_data(config)
+    lineage = task_capture_lineage(df, config, config_path, random_state)
     X, y, all_split_data = task_prepare_and_split_data(df, config, random_state)
 
     n_jobs_override = _inner_n_jobs(max_workers, cpu_fraction)
@@ -195,6 +222,7 @@ def train_all_outputs_flow(
                 model_config=model_config,
                 data=data,
                 config=config,
+                lineage=lineage,
                 random_state=random_state,
                 n_jobs_override=n_jobs_override,
             )
@@ -219,7 +247,7 @@ def train_all_outputs_flow(
     flat_results = [
         result for pairs in results_with_runs.values() for result, _ in pairs
     ]
-    task_log_summary(flat_results, config)
+    task_log_summary(flat_results, config, lineage)
 
     if not skip_verification:
         winners: dict[str, tuple[TrainingResult, str]] = {}
@@ -264,6 +292,7 @@ def train_specific_model_flow(
         raise ValueError(f"Model type '{model_type}' not found in config")
 
     df = task_load_data(config)
+    lineage = task_capture_lineage(df, config, config_path, random_state)
     _X, _y, split_data = task_prepare_and_split_data(df, config, random_state)
     data = split_data[output_name]
 
@@ -271,6 +300,7 @@ def train_specific_model_flow(
         model_config=model_config,
         data=data,
         config=config,
+        lineage=lineage,
         random_state=random_state,
     )
 

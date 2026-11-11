@@ -3,7 +3,7 @@
 The main architectural dependencies of this project are:
 
 - [Prefect](https://www.prefect.io/) for workflow orchestration
-- [MLflow](https://mlflow.org/) for experiment tracking and model registry
+- [MLflow](https://mlflow.org/) for experiment tracking, model registry, and model serving
 
 ```mermaid
 architecture-beta
@@ -18,8 +18,9 @@ architecture-beta
 The pipeline implements a **train → compare → verify → register** lifecycle:
 every configured model is trained for every output variable, the best model per
 output (lowest test RMSE) is selected as the *winner*, the winners undergo a
-suite of verification tests, and only winners that pass **all** tests are
-automatically registered in the MLflow Model Registry.
+suite of verification tests, and only winners that meet the accuracy
+thresholds and pass **all** tests are automatically registered in the MLflow
+Model Registry. Registered models can then be served as a REST API.
 
 ## Prefect workflows
 
@@ -44,11 +45,12 @@ flowchart TD
       task_load_config
       task_setup_mlflow]
 
-    data_loading[<b>Load, validate, and split data</b>
+    data_loading[<b>Load, validate, identify, and split data</b>
       task_load_data
+      task_capture_lineage
       task_prepare_and_split_data]
 
-    model_training@{ shape: procs, label: "**Train all models**<br>task_train_model<br><br>*parallel execution for each model × output;<br>each result is logged to MLflow as soon as it is trained*" }
+    model_training@{ shape: procs, label: "**Train all models**<br>task_train_model<br><br>*parallel execution for each model × output;<br>each result is logged to MLflow as soon as it is trained,<br>with its lineage and accuracy outcome*" }
 
     log_summary[<b>Log experiment summary
             to MLflow</b>
@@ -59,7 +61,7 @@ flowchart TD
 
     verify_best_models@{ shape: procs, label: "**Verify winners**<br>task_verify_model<br><br>*parallel execution for each winner;<br>results are attached to the winner's MLflow run*" }
 
-    register_winners@{ shape: procs, label: "**Register passing winners**<br>task_register_winner<br><br>*to the MLflow Model Registry (skipped if any verification test fails)*" }
+    register_winners@{ shape: procs, label: "**Register passing winners**<br>task_register_winner<br><br>*to the MLflow Model Registry (skipped if an accuracy threshold<br>is exceeded or any verification test fails)*" }
 
 
     flow_setup --> data_loading
@@ -77,14 +79,17 @@ flowchart TD
 ```
 
 After loading the configuration and initializing
-MLflow tracking, the dataset is loaded, validated, and split into per-output
-train/test sets. The **training subflow** then starts: one training task per
+MLflow tracking, the dataset is loaded and validated, the lineage of the
+execution is captured (data version, configuration, code version, seed), and
+the data is split into per-output train/test sets. The **training subflow**
+then starts: one training task per
 model × output combination runs in parallel, and each logs its results to
 MLflow independently; when all have finished, a summary run comparing them is
 logged. The **verification subflow** narrows the field: the best model per
 output (lowest test RMSE) is selected as the winner, each winner is put through
-the configured verification tests in parallel, and winners that pass every test
-are registered in the MLflow Model Registry. Each box in the diagram lists the Prefect tasks involved, which are described next.
+the configured verification tests in parallel, and winners that meet the
+accuracy thresholds and pass every test are registered in the MLflow Model
+Registry. Each box in the diagram lists the Prefect tasks involved, which are described next.
 
 ### Tasks
 
@@ -97,11 +102,12 @@ wrappers around the library code in `cmlops/training/`,
 | `task_load_config` | Load and validate the YAML configuration with Pydantic | |
 | `task_setup_mlflow` | Set the MLflow tracking URI and create/select the experiment | |
 | `task_load_data` | Load the CSV dataset and validate it with Pandera | 1 retry with 5 s delay |
+| `task_capture_lineage` | Identify the dataset version (MD5 of the file), the configuration file, the git commit, and the seed of the execution | Fails if the dataset is tracked by DVC and differs from the recorded version |
 | `task_prepare_and_split_data` | Project the dataframe into features/targets and build the per-output train/test splits | |
-| `task_train_model` | Train one model for one output (with hyperparameter search) and log it to MLflow | 2 retries with 10 s delay; tagged `training`; submitted with `.submit()` for parallel execution |
+| `task_train_model` | Train one model for one output (with hyperparameter search) and log it to MLflow, with its lineage and its outcome against the accuracy thresholds | 2 retries with 10 s delay; tagged `training`; submitted with `.submit()` for parallel execution |
 | `task_log_summary` | Log a single MLflow run comparing all trained models | |
 | `task_verify_model` | Run every configured verification test on a winner and attach the report to its MLflow run | Tagged `verification`; submitted with `.submit()` |
-| `task_register_winner` | Register the winner's model in the MLflow Model Registry **iff** all verification tests passed | |
+| `task_register_winner` | Register the winner's model in the MLflow Model Registry **iff** it met the accuracy thresholds and all verification tests passed | |
 
 Parallelism is fan-out/fan-in: every `task_train_model` is submitted as a
 Prefect future (one per model × output combination), and the flow blocks on
@@ -187,22 +193,48 @@ experiment is named after `project.name` in the configuration
   and the cross-validation results as a CSV artifact) as soon as that model
   finishes training, so runs become observable in parallel rather than only
   after the whole batch completes.
+- **Lineage on every run.** Each run, the summary run included, records what
+  it was produced from: the dataset as an MLflow dataset input (name, source,
+  and the MD5 of the file as digest), the declared dataset version (tag
+  `dataset.version`), the seed (parameter `random_state`), the configuration
+  file (artifact `config/`), the git commit of the checkout (tag
+  `mlflow.source.git.commit`, with `source.git.dirty` telling whether tracked
+  files were modified), and the Prefect flow run (tag `prefect.flow_run_id`),
+  which the runs of one execution share. The commit is read from the project
+  checkout because MLflow's own lookup starts from the launched script, which
+  for the `cmlops` command lies in the git-ignored virtual environment.
+- **Accuracy outcome on every run.** The test metrics of each model are
+  compared with the `gate_thresholds` of its output
+  (`cmlops/training/acceptance.py`): each threshold is logged as the parameter
+  `accuracy.<metric>.threshold`, each outcome as the tag `accuracy.<metric>`
+  (`pass`/`fail`), and the overall outcome as the tag `accuracy.status`
+  (`not_assessed` when the output has no threshold).
 - **One summary run per experiment.** Once every model has been trained,
   `task_log_summary` adds a single `experiment_summary` run with a comparison
-  table of all models and the best model/RMSE per output.
+  table of all models (including their accuracy outcome) and the best
+  model/RMSE per output.
 - **Verification results attached to the winner's run.** `task_verify_model`
   resumes the winner's existing run and adds per-test metrics, params, and
   pass/fail tags (`verification.<test>`, `verification.status`), plus the full
   structured report as a `verification/report.json` artifact.
 - **Conditional registration.** `task_register_winner` registers the winner's
   logged model under the name `{project.name}_{output}_{model_label}` in the
-  MLflow Model Registry, but only if `report.all_passed` is true.
+  MLflow Model Registry, but only if the model met the accuracy thresholds and
+  `report.all_passed` is true. A winner that misses a threshold is verified
+  anyway, so that its evidence is recorded.
+- **Serving from the registry.** `cmlops serve --output X` looks up the latest
+  registered version among the models of that output and serves it with
+  MLflow's model server (`mlflow models serve`), in the project environment.
+  Since only the registry is served from, a model reaches serving only after
+  passing both gates, and the served version points back to its run and
+  evidence.
 
 ## CLI
 
 The workflows are executed through a CLI defined in `cmlops/cli.py`
 using **Typer**, with **Rich** for formatted console output. Besides `train`
-(see the flow table above), the CLI provides `list-models` (shows the
+(see the flow table above), the CLI provides `serve` (serves the latest
+registered model of an output as a REST API), `list-models` (shows the
 configured models and their hyperparameter search spaces) and `mlflow-ui`
 (starts the MLflow UI against the local tracking database).
 
@@ -226,8 +258,9 @@ specifies:
   optional per-model optimization override;
 - **`verification`**: the list of verification tests to run, each with its own
   thresholds (per output field) and parameters;
-- **`gate_thresholds`**: validation acceptance criteria per output field
-  (declared in the configuration, not yet enforced by the pipeline).
+- **`gate_thresholds`**: acceptance thresholds on model accuracy per output
+  field, on the maximum absolute error or the RMSE measured on the test set;
+  a model that exceeds a threshold of its output is not registered.
 
 ## Data loading and validation
 

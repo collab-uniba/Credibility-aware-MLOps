@@ -10,6 +10,7 @@ Choose ports that are available on your server:
 # Set your custom ports (adjust as needed)
 export PREFECT_PORT=4250
 export MLFLOW_PORT=5050
+export SERVING_PORT=5051
 ```
 
 ---
@@ -106,6 +107,15 @@ uv run cmlops mlflow-ui --port ${MLFLOW_PORT}
 
 The MLflow UI will be available at `http://<server-ip>:${MLFLOW_PORT}`
 
+## 10. Serve a Registered Model (Optional)
+
+```bash
+# Serve the latest registered model of an output (here, an output of the case study)
+uv run cmlops serve --output maxStrain_11 --host 0.0.0.0 --port ${SERVING_PORT}
+```
+
+Predictions are requested with a POST to `http://<server-ip>:${SERVING_PORT}/invocations`. Only models that met the accuracy thresholds and passed verification are registered, so the command fails if training registered no model for the output.
+
 ---
 
 ## Running as Background Services (Production)
@@ -173,6 +183,9 @@ If using UFW (adjust ports to match your configuration):
 # Allow MLflow UI
 sudo ufw allow 5050/tcp
 
+# Allow the prediction API (if serving a model)
+sudo ufw allow 5051/tcp
+
 # Allow Prefect UI (if using)
 sudo ufw allow 4250/tcp
 ```
@@ -184,6 +197,7 @@ sudo ufw allow 4250/tcp
 | Service | Default Port | Custom Port Flag | Environment Variable |
 |---------|--------------|------------------|---------------------|
 | MLflow UI | 5000 | `--port <port>` | — |
+| Prediction API | 5001 | `--port <port>` | — |
 | Prefect Server | 4200 | `--port <port>` | `PREFECT_API_URL` must match |
 
 **Note:** When changing the Prefect server port, you must also update `PREFECT_API_URL` to match, otherwise flows won't connect to the server.

@@ -89,8 +89,10 @@ def train(
 
       cmlops train                          -> trains all models x all outputs,
                                                 verifies the winner per output,
-                                                registers passing winners to the
-                                                MLflow Registry.
+                                                registers the winners that meet
+                                                the accuracy thresholds and pass
+                                                verification to the MLflow
+                                                Registry.
 
       cmlops train --output X               -> trains all models for one output,
                                                 verifies + registers the winner.
@@ -180,6 +182,95 @@ def mlflow_ui(
     console.print(f"Starting MLflow UI at http://localhost:{port}")
     subprocess.run(
         ["mlflow", "ui", "--backend-store-uri", mlflow_uri, "--port", str(port)],
+        check=False,
+    )
+
+
+@app.command()
+def serve(
+    output: str = typer.Option(
+        ...,
+        "--output",
+        "-o",
+        help="Output whose registered model to serve, among those declared in "
+        "the configuration.",
+    ),
+    config: Optional[str] = typer.Option(
+        None,
+        "--config",
+        "-c",
+        help="Path to configuration file",
+    ),
+    mlflow_uri: str = typer.Option(
+        "sqlite:///mlruns.db",
+        "--mlflow-uri",
+        help="MLflow tracking URI",
+    ),
+    host: str = typer.Option(
+        "127.0.0.1",
+        "--host",
+        help="Network address to listen on",
+    ),
+    port: int = typer.Option(
+        5001,
+        "--port",
+        "-p",
+        help="Port for the prediction API",
+    ),
+) -> None:
+    """Serve the latest registered model of an output as a REST API.
+
+    Models are served from the MLflow Model Registry, which holds only models
+    that met the accuracy thresholds and passed every verification test.
+    Predictions are requested with a POST to /invocations.
+    """
+    import os
+
+    from mlflow import MlflowClient
+
+    from cmlops.config import load_config
+
+    cfg = load_config(config) if config else load_config()
+    if output not in [field.name for field in cfg.dataset.outputs]:
+        raise typer.BadParameter(
+            f"'{output}' is not an output declared in the configuration",
+            param_hint="--output",
+        )
+
+    # Registered model names end with the label of the winning model, so the
+    # models of an output are looked up across the configured labels.
+    client = MlflowClient(tracking_uri=mlflow_uri)
+    versions = [
+        version
+        for model_cfg in cfg.model_building.model_list
+        for version in client.search_model_versions(
+            f"name='{cfg.registered_model_name(output, model_cfg.label)}'"
+        )
+    ]
+    if not versions:
+        console.print(
+            f"[red]No registered model for {output}.[/red] A model is registered "
+            "when the winner of a training run meets the accuracy thresholds "
+            "and passes every verification test."
+        )
+        raise typer.Exit(code=1)
+
+    latest = max(versions, key=lambda version: version.creation_timestamp)
+    console.print(
+        f"Serving [bold]{latest.name}[/bold] version {latest.version} "
+        f"(run {latest.run_id})"
+    )
+    console.print(f"Prediction endpoint: http://{host}:{port}/invocations")
+    subprocess.run(
+        [
+            "mlflow", "models", "serve",
+            "--model-uri", f"models:/{latest.name}/{latest.version}",
+            "--host", host,
+            "--port", str(port),
+            # Serve from the project environment, which has the model's dependencies
+            "--env-manager", "local",
+        ],
+        env={**os.environ, "MLFLOW_TRACKING_URI": mlflow_uri},
         check=False,
     )
 

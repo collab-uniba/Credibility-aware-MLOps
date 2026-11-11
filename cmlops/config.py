@@ -112,10 +112,19 @@ class ThresholdCriterion(BaseModel):
     value: float
 
 
-class GateThresholds(BaseModel):
-    """Gate thresholds for validation."""
+class AccuracyCriterion(ThresholdCriterion):
+    """An acceptance threshold on a test metric of a model.
 
-    validation: list[ThresholdCriterion]
+    Limited to the metrics the pipeline computes on the test set.
+    """
+
+    metric: Literal["MaximumAbsoluteError", "RMSE"]
+
+
+class GateThresholds(BaseModel):
+    """Acceptance thresholds on model accuracy, checked before registration."""
+
+    validation: list[AccuracyCriterion]
 
 
 # =============================================================================
@@ -254,6 +263,19 @@ PROJECT_ROOT = Path(__file__).parent.parent
 DEFAULT_CONFIG_PATH = Path("config/BoneStrengthML.yml")
 
 
+def resolve_config_path(path: str | Path | None = None) -> Path:
+    """Absolute path of the configuration file a run uses.
+
+    Args:
+        path: Path to the configuration file. Defaults to DEFAULT_CONFIG_PATH.
+              Relative paths are resolved from the project root directory.
+    """
+    path = Path(path) if path else DEFAULT_CONFIG_PATH
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    return path
+
+
 def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> PipelineConfig:
     """Load and validate the pipeline configuration.
 
@@ -264,7 +286,4 @@ def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> PipelineConfig:
     Returns:
         Validated configuration object.
     """
-    path = Path(path)
-    if not path.is_absolute():
-        path = PROJECT_ROOT / path
-    return PipelineConfig.from_yaml(path)
+    return PipelineConfig.from_yaml(resolve_config_path(path))
