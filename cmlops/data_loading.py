@@ -3,15 +3,20 @@
 This module provides functionality to:
 - Load raw data from CSV files based on configuration
 - Validate data using Pandera schemas dynamically generated from config
+- Identify the version of a dataset file and check it against the one
+  recorded by DVC
 """
 
+import hashlib
 from pathlib import Path
 
 import pandas as pd
 import pandera.pandas as pa
+import yaml
 from pandera.pandas import Column, DataFrameSchema
 
 from cmlops.config import (
+    PROJECT_ROOT,
     PipelineConfig,
     DatasetConfig,
     InputField,
@@ -26,6 +31,10 @@ class DataValidationError(Exception):
     def __init__(self, message: str, failure_cases: pd.DataFrame | None = None):
         super().__init__(message)
         self.failure_cases = failure_cases
+
+
+class DataVersionError(Exception):
+    """Raised when a dataset file differs from the version recorded by DVC."""
 
 
 def _build_column_schema(
@@ -90,6 +99,60 @@ def build_schema_from_config(dataset_config: DatasetConfig) -> DataFrameSchema:
     )
 
 
+def resolve_dataset_path(
+    config: PipelineConfig,
+    data_path: str | Path | None = None,
+) -> Path:
+    """Absolute path of the dataset file a run uses.
+
+    Args:
+        config: Pipeline configuration.
+        data_path: Override path for data file. If None, uses path from config.
+            Relative paths are resolved from the config directory.
+    """
+    file_path = Path(data_path) if data_path is not None else Path(config.dataset.path)
+    if not file_path.is_absolute():
+        file_path = (PROJECT_ROOT / "config" / file_path).resolve()
+    return file_path
+
+
+def file_md5(path: str | Path) -> str:
+    """MD5 of a file's content, the hash DVC identifies a data version by."""
+    digest = hashlib.md5(usedforsecurity=False)
+    with Path(path).open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def check_dvc_pointer(path: str | Path, md5: str) -> None:
+    """Check a dataset file against the data version recorded by DVC.
+
+    A file tracked with ``dvc add`` has a pointer file ``<path>.dvc`` next to
+    it, committed to git, that holds the MD5 of the tracked version. A file
+    that differs from it corresponds to no recorded data version, so evidence
+    produced from it could not be traced back to its data. Files without a
+    pointer are not tracked by DVC and are not checked.
+
+    Raises:
+        DataVersionError: If the file differs from the version in the pointer.
+    """
+    path = Path(path)
+    pointer = path.with_name(path.name + ".dvc")
+    if not pointer.exists():
+        return
+
+    with pointer.open() as f:
+        recorded_md5 = yaml.safe_load(f)["outs"][0]["md5"]
+    if recorded_md5 != md5:
+        raise DataVersionError(
+            f"{path} (md5 {md5}) differs from the data version recorded in "
+            f"{pointer.name} (md5 {recorded_md5}). Record it as a new version "
+            f"with `dvc add {path}` and commit the pointer, or restore the "
+            f"recorded version with `dvc checkout {pointer}`."
+        )
+
+
 def load_raw_data(
     config: PipelineConfig | None = None,
     data_path: str | Path | None = None,
@@ -109,21 +172,9 @@ def load_raw_data(
     if config is None:
         config = load_config()
 
-    dataset_config = config.dataset
-    format_meta = dataset_config.format_metadata
+    format_meta = config.dataset.format_metadata
 
-    # Determine file path
-    if data_path is not None:
-        file_path = Path(data_path)
-    else:
-        file_path = Path(dataset_config.path)
-
-    # Handle relative paths (relative to config directory)
-    if not file_path.is_absolute():
-        # Resolve relative to project root
-        project_root = Path(__file__).parent.parent
-        config_dir = project_root / "config"
-        file_path = (config_dir / file_path).resolve()
+    file_path = resolve_dataset_path(config, data_path)
 
     if not file_path.exists():
         raise FileNotFoundError(f"Data file not found: {file_path}")

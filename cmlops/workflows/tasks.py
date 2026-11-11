@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 from prefect import task
-from prefect.runtime import task_run
+from prefect.runtime import flow_run, task_run
 
 from cmlops.config import PipelineConfig, ModelConfig, load_config
 from cmlops.data_loading import (
@@ -13,6 +13,8 @@ from cmlops.data_loading import (
     load_and_validate_data,
 )
 from cmlops.training.mlflow_utils import (
+    RunLineage,
+    capture_lineage,
     log_experiment_summary,
     log_training_result,
     log_verification_results,
@@ -37,6 +39,28 @@ def task_load_config(config_path: str | Path | None = None) -> PipelineConfig:
 def task_load_data(config: PipelineConfig) -> pd.DataFrame:
     """Load and validate dataset."""
     return load_and_validate_data(config=config)
+
+
+@task(name="capture_lineage")
+def task_capture_lineage(
+    df: pd.DataFrame,
+    config: PipelineConfig,
+    config_path: str | Path | None = None,
+    random_state: int = 42,
+) -> RunLineage:
+    """Identify the data version, configuration and code version of this
+    pipeline execution, to be logged on each of its MLflow runs.
+
+    Fails if the dataset file is tracked by DVC and differs from the recorded
+    version.
+    """
+    return capture_lineage(
+        df=df,
+        config=config,
+        config_path=config_path,
+        random_state=random_state,
+        flow_run_id=str(flow_run.id) if flow_run.id else None,
+    )
 
 
 @task(name="prepare_and_split_data")
@@ -88,6 +112,7 @@ def task_train_model(
     model_config: ModelConfig,
     data: TrainTestData,
     config: PipelineConfig,
+    lineage: RunLineage,
     random_state: int = 42,
     n_jobs_override: int | None = None,
 ) -> tuple[TrainingResult, str]:
@@ -112,6 +137,7 @@ def task_train_model(
         result=result,
         config=config,
         X_sample=data.X_train.iloc[:100],
+        lineage=lineage,
     )
     return result, run_id
 
@@ -120,9 +146,10 @@ def task_train_model(
 def task_log_summary(
     results: list[TrainingResult],
     config: PipelineConfig,
+    lineage: RunLineage,
 ) -> str:
     """Log experiment summary to MLflow."""
-    return log_experiment_summary(results, config)
+    return log_experiment_summary(results, config, lineage)
 
 
 @task(name="verify_model", tags=["verification"])
