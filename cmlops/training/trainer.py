@@ -19,7 +19,13 @@ from cmlops.training.splitter import TrainTestData
 
 @dataclass
 class TrainingResult:
-    """Result of training a single model."""
+    """Result of training a single model.
+
+    ``optimization_method`` and ``cv_folds`` are the settings the
+    hyperparameter search actually ran with (the model-specific ones when the
+    model overrides the global optimization config). Both are ``None`` when the
+    model has no hyperparameters to tune and no search was run.
+    """
 
     model_label: str
     model_type: str
@@ -29,6 +35,8 @@ class TrainingResult:
     cv_results: dict[str, Any]
     test_metrics: dict[str, float]
     train_metrics: dict[str, float]
+    optimization_method: str | None
+    cv_folds: int | None
 
 
 def train_single_model(
@@ -66,6 +74,8 @@ def train_single_model(
         best_estimator = base_model
         best_params: dict[str, Any] = {}
         cv_results: dict[str, Any] = {}
+        optimization_method: str | None = None
+        cv_folds: int | None = None
     else:
         # Select search strategy
         search = _create_search(
@@ -82,6 +92,8 @@ def train_single_model(
         if model_config.type == "GaussianProcessRegressor":
             best_params = normalize_gpr_best_params(best_params)
         cv_results = search.cv_results_
+        optimization_method = opt_config.optimization_method
+        cv_folds = opt_config.cv
 
     # Evaluate on train and test
     # ravel() ensures 1D output (PLSRegression returns 2D arrays)
@@ -100,6 +112,8 @@ def train_single_model(
         cv_results=cv_results,
         test_metrics=test_metrics,
         train_metrics=train_metrics,
+        optimization_method=optimization_method,
+        cv_folds=cv_folds,
     )
 
 
