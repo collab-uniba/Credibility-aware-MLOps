@@ -2,7 +2,7 @@
 
 Replication package of the paper *"An MLOps Framework for Traceable and Reproducible Verification Evidence in the Credibility Assessment of ML Predictors"*.
 
-This repository contains `cmlops`, an MLOps pipeline that embeds verification activities into ML experimentation. Every time models are trained, the best model for each output is put through a set of verification tests, and the results are stored with the training run that produced the model. A model is registered only if it passes every test.
+This repository contains `cmlops`, an MLOps pipeline that embeds verification activities into ML experimentation. Every time models are trained, the best model for each output is put through a set of verification tests, and the results are stored with the training run that produced the model, together with the data version, configuration, and code version the run used. A model is registered, and can then be served, only if it meets the accuracy thresholds of its context of use and passes every test.
 
 The verification tests are implemented by [vv4ml](https://github.com/collab-uniba/vv4ml), a Python library of ML verification activities adapted from the verification, validation, uncertainty quantification, and applicability (VVUQA) approach to the credibility assessment of computational models (ASME V&V 40).
 
@@ -13,13 +13,16 @@ The pipeline is demonstrated on a case study: BoneStrengthML, an ML surrogate of
 A single YAML configuration file describes the dataset, the models to train, and the verification tests to run. Given that file, `cmlops train` performs the following steps:
 
 1. **Validate the inputs.** The configuration is validated with Pydantic, and the dataset is validated with a Pandera schema generated from the field specifications in the configuration (types, ranges, missing values, duplicates).
-2. **Split the data** into train and test sets, either row by row or by groups of rows that must stay together.
-3. **Train every configured model for every output**, each with a cross-validated hyperparameter search. Each trained model is logged as an MLflow run.
-4. **Select a winner per output**: the model with the lowest test RMSE.
-5. **Verify each winner** with the tests listed in the configuration.
-6. **Record the evidence and register.** The verification results are attached to the winner's MLflow run, and the model is added to the MLflow Model Registry only if all tests passed.
+2. **Identify what the run is produced from**: the dataset version (the MD5 of the dataset file), the configuration file, the git commit of the code, and the random seed.
+3. **Split the data** into train and test sets, either row by row or by groups of rows that must stay together.
+4. **Train every configured model for every output**, each with a cross-validated hyperparameter search. Each trained model is logged as an MLflow run, with its lineage and with the outcome of the comparison between its test error and the accuracy thresholds.
+5. **Select a winner per output**: the model with the lowest test RMSE.
+6. **Verify each winner** with the tests listed in the configuration.
+7. **Record the evidence and register.** The verification results are attached to the winner's MLflow run, and the model is added to the MLflow Model Registry only if it met the accuracy thresholds and all tests passed.
 
-The steps are orchestrated as [Prefect](https://www.prefect.io/) flows; [MLflow](https://mlflow.org/) provides experiment tracking and the model registry. See [docs/workflow-architecture.md](docs/workflow-architecture.md) for the details.
+A registered model can then be served as a REST API (see [Serving a model](#serving-a-model)).
+
+The steps are orchestrated as [Prefect](https://www.prefect.io/) flows; [MLflow](https://mlflow.org/) provides experiment tracking, the model registry, and model serving. See [docs/workflow-architecture.md](docs/workflow-architecture.md) for the details.
 
 ### Verification tests
 
@@ -35,12 +38,14 @@ All three evaluate the model on points drawn by Latin Hypercube Sampling from th
 
 The evidence is stored in the MLflow run of the model it refers to, next to the training record of that model:
 
+- **Lineage:** the dataset (name, MD5 digest, and source), the declared dataset version (tag `dataset.version`), the random seed (parameter `random_state`), the configuration file (artifact `config/`), and the git commit of the code (tag `mlflow.source.git.commit`; `source.git.dirty` tells whether tracked files had uncommitted changes).
 - **Training record:** model type, selected hyperparameters, split and search settings, train and test metrics, the cross-validation results, and the fitted model.
+- **Accuracy outcome:** each threshold as the parameter `accuracy.<metric>.threshold`, its outcome as the tag `accuracy.<metric>` (`pass` or `fail`), and the overall outcome as the tag `accuracy.status`. The metric itself is the test metric `test_<metric>`.
 - **Verification metrics and parameters**, named `verification.<test>.<name>`.
 - **Verification outcome tags:** `verification.<test>` (`pass` or `fail`) for each test, and `verification.status` for the overall outcome.
 - **Verification report:** the full structured results, as the artifact `verification/report.json`.
 
-A registered model version points to the run it was registered from, and therefore to its evidence.
+Lineage, training record, and accuracy outcome are logged for every trained model; the verification items are logged for the winner of each output, the only model that is verified. A registered model version points to the run it was registered from, and therefore to its evidence.
 
 ## Installation
 
@@ -94,6 +99,8 @@ Train one model for one output. This is a shortcut for debugging: it runs no ver
 cmlops train --output maxStrain_11 --model RandomForestRegressor
 ```
 
+A winner that misses an accuracy threshold is still verified, so that its evidence is recorded, but it is not registered.
+
 To stop after training, skipping verification and therefore registration:
 
 ```bash
@@ -117,6 +124,47 @@ cmlops mlflow-ui
 ```
 
 Then open http://localhost:5000 in your browser.
+
+### Querying the evidence
+
+The evidence can also be queried through the MLflow API. For example, to list the runs trained on a given data version whose model met the accuracy thresholds and passed verification:
+
+```python
+import mlflow
+
+mlflow.set_tracking_uri("sqlite:///mlruns.db")
+runs = mlflow.search_runs(
+    experiment_names=["BoneStrengthML"],
+    filter_string=(
+        "dataset.digest = '92be51463af78164dc0ed8c5048bd8f2' "
+        "and tags.`accuracy.status` = 'passed' "
+        "and tags.`verification.status` = 'passed'"
+    ),
+)
+print(runs[["tags.mlflow.runName", "metrics.test_max_ae", "tags.mlflow.source.git.commit"]])
+```
+
+The digest is the MD5 of the dataset file (`md5sum data/raw/sampleDataset.csv`).
+
+### Serving a model
+
+Serve the latest registered model of an output as a REST API:
+
+```bash
+cmlops serve --output maxStrain_11
+```
+
+The command serves models from the MLflow Model Registry only, so a model can be served only after it met the accuracy thresholds and passed every verification test. It prints the name, version, and run of the model it serves, and listens on port 5001 unless `--port` says otherwise.
+
+Predictions are requested with a POST to `/invocations`, with the input fields as columns:
+
+```bash
+curl http://localhost:5001/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"dataframe_split": {"columns": ["PC_1", "PC_2", "..."], "data": [[0.12, -0.34, "..."]]}}'
+```
+
+Every input field declared in the configuration must be present. A complete example request is stored with each model, as the artifact `serving_input_example.json`.
 
 ### Monitoring the workflow (optional)
 
@@ -167,7 +215,7 @@ The configuration has five sections:
 - **`dataset`**: path and format of the CSV file, and the specification of every input and output field (name, type, valid range, units). The ranges are used both for data validation and for sampling the verification points.
 - **`model_building`**: train/test split, hyperparameter search settings, and the list of models with their hyperparameter grids. Supported model types: random forest, XGBoost, support vector regression, linear regression, multi-layer perceptron, partial least squares, CatBoost, and Gaussian process regression.
 - **`verification`**: the verification tests to run, each with its thresholds per output and its parameters.
-- **`gate_thresholds`**: acceptance thresholds on model accuracy per output. They are declared in the configuration, but the pipeline does not enforce them yet.
+- **`gate_thresholds`**: acceptance thresholds on model accuracy per output, on the maximum absolute error or the RMSE measured on the test set. A model that exceeds a threshold of its output is not registered.
 
 `cmlops list-models --config path/to/your-config.yml` shows the models a configuration declares.
 
@@ -185,10 +233,11 @@ The code is released under the [MIT License](LICENSE).
 cmlops/                 # The pipeline
     config.py               # Pydantic configuration models
     data_loading.py         # Data loading and validation with Pandera
-    cli.py                  # Command-line interface
+    cli.py                  # Command-line interface (train, serve, mlflow-ui, list-models)
     training/               # Model training
         model_factory.py        # Model instantiation from config (incl. GPR pipeline and kernel registry)
         metrics.py              # Evaluation metrics
+        acceptance.py           # Accuracy assessment against the acceptance thresholds
         splitter.py             # Train/test splitting
         trainer.py              # Hyperparameter optimization
         mlflow_utils.py         # MLflow integration
