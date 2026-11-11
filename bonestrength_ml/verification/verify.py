@@ -21,7 +21,7 @@ def run_full_verification(
     """Run every verification check declared in ``config.verification.test_list``.
 
     Pure function: builds a fresh ``VerificationContext`` per check (each carries
-    its own YAML entry) and assembles a ``VerificationReport``. Does not touch
+    its own YAML entry and the results of the checks run before it) and assembles a ``VerificationReport``. Does not touch
     MLflow — that happens in ``log_verification_results``.
     """
     report = VerificationReport(output_name=result.output_name)
@@ -33,6 +33,7 @@ def run_full_verification(
             config=config,
             entry=entry,
             random_state=random_state,
+            prior={t.name: t for t in report.tests},
         )
         report.tests.append(check(ctx))
     return report

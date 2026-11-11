@@ -13,7 +13,9 @@ from bonestrength_ml.training.trainer import TrainingResult
 class VerificationContext:
     """Inputs every verification check needs.
 
-    Built once per winning model and passed to each check.
+    Built per check for a winning model. ``prior`` holds the results of the
+    checks already run on the same model, keyed by test name, for checks that
+    build on an earlier one.
     """
 
     result: TrainingResult
@@ -22,6 +24,7 @@ class VerificationContext:
     config: BoneStrengthMLConfig
     entry: VerificationTestEntry
     random_state: int = 42
+    prior: "dict[str, TestResult]" = field(default_factory=dict)
 
 
 @dataclass
