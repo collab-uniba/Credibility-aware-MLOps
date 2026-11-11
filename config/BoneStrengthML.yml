@@ -505,7 +505,7 @@ dataset:
 gate_thresholds:
   validation:
     - field: maxStrain_11
-      metric: MaximumAbsoluteError # Oppure InfinityNorm, qui dobbiamo decidere un dizionario di metriche ammissibili (RMSE, PercentageRMSE, ecc.)
+      metric: MaximumAbsoluteError # Or InfinityNorm; TODO: decide on the set of admissible metrics (RMSE, PercentageRMSE, etc.)
       value: 0.000051
     - field: maxStrain_33
       metric: MaximumAbsoluteError
@@ -555,21 +555,14 @@ model_building:
     method: grouped
     group_by: ["PC_*"] # Rows sharing the same PC_* values describe the same femur and are kept on the same side of the split
 
-  preprocessing:
-    normalization: false # Definire dizionario (su ogni campo di input? Può variare per i vari modelli testati?)
-    standardization: false # Definire dizionario (come sopra)
-
   optimization:
-    feature_selection: null # Anche qui metterei un dizionario con i metodi possibili (ed eventuali campi ulteriori per parametri del feature selector; può variare per i diversi modelli?)
-    optimization_method: GridSearch # Uguale per tutti i modelli?
+    optimization_method: GridSearch
     n_jobs: 1 # Used only when training a single model (--output X --model Y); otherwise sized from the CPU budget (see workflows.flows)
     cv: 5
-    scoring: null
 
   model_list:
-    - type: RandomForestRegressor # Definire dizionario
+    - type: RandomForestRegressor
       optimization:
-        feature_selection: null
         optimization_method: RandomizedSearchCV
         n_jobs: 1
         cv: 5

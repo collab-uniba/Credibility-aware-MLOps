@@ -220,8 +220,8 @@ specifies:
 - **`dataset`**: path, CSV format metadata, and the full schema of input/output
   fields (name, type, valid range, units) used for both data validation and
   Latin Hypercube sampling;
-- **`model_building`**: train/test split settings, preprocessing flags, the
-  global hyperparameter-optimization settings (search method, CV folds, …),
+- **`model_building`**: train/test split settings, the global
+  hyperparameter-optimization settings (search method, CV folds, …),
   and the list of models to train — each with its hyperparameter grid and an
   optional per-model optimization override;
 - **`verification`**: the list of verification tests to run, each with its own
