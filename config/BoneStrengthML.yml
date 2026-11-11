@@ -1,3 +1,6 @@
+project:
+  name: BoneStrengthML # Default MLflow experiment name and prefix of the registered model names
+
 dataset:
   name: BoneStrengthML-dataset
   path: ../data/raw/sampleDataset.csv
@@ -550,6 +553,7 @@ model_building:
   train_test_split:
     train_fraction: 0.7
     method: grouped
+    group_by: ["PC_*"] # Rows sharing the same PC_* values describe the same femur and are kept on the same side of the split
 
   preprocessing:
     normalization: false # Definire dizionario (su ogni campo di input? Può variare per i vari modelli testati?)

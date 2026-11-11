@@ -1,4 +1,4 @@
-"""Prefect tasks for BoneStrengthML training pipeline."""
+"""Prefect tasks for the training pipeline."""
 
 from pathlib import Path
 
@@ -6,27 +6,27 @@ import pandas as pd
 from prefect import task
 from prefect.runtime import task_run
 
-from bonestrength_ml.config import BoneStrengthMLConfig, ModelConfig, load_config
-from bonestrength_ml.data_loading import (
+from cmlops.config import PipelineConfig, ModelConfig, load_config
+from cmlops.data_loading import (
     get_input_columns,
     get_output_columns,
     load_and_validate_data,
 )
-from bonestrength_ml.training.mlflow_utils import (
+from cmlops.training.mlflow_utils import (
     log_experiment_summary,
     log_training_result,
     log_verification_results,
     register_run_model,
     setup_mlflow,
 )
-from bonestrength_ml.training.splitter import TrainTestData, prepare_train_test_split
-from bonestrength_ml.training.trainer import TrainingResult, train_single_model
-from bonestrength_ml.verification.base import VerificationReport
-from bonestrength_ml.verification.verify import run_full_verification
+from cmlops.training.splitter import TrainTestData, prepare_train_test_split
+from cmlops.training.trainer import TrainingResult, train_single_model
+from cmlops.verification.base import VerificationReport
+from cmlops.verification.verify import run_full_verification
 
 
 @task(name="load_config", retries=0)
-def task_load_config(config_path: str | Path | None = None) -> BoneStrengthMLConfig:
+def task_load_config(config_path: str | Path | None = None) -> PipelineConfig:
     """Load and validate configuration."""
     if config_path:
         return load_config(config_path)
@@ -34,7 +34,7 @@ def task_load_config(config_path: str | Path | None = None) -> BoneStrengthMLCon
 
 
 @task(name="load_data", retries=1, retry_delay_seconds=5)
-def task_load_data(config: BoneStrengthMLConfig) -> pd.DataFrame:
+def task_load_data(config: PipelineConfig) -> pd.DataFrame:
     """Load and validate dataset."""
     return load_and_validate_data(config=config)
 
@@ -42,7 +42,7 @@ def task_load_data(config: BoneStrengthMLConfig) -> pd.DataFrame:
 @task(name="prepare_and_split_data")
 def task_prepare_and_split_data(
     df: pd.DataFrame,
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
     random_state: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, TrainTestData]]:
     """Project the dataframe into features (X) / targets (y) and build the
@@ -52,9 +52,9 @@ def task_prepare_and_split_data(
     downstream verification) plus the per-output ``TrainTestData`` splits used
     for training.
 
-    When the split method is "grouped", patient group labels are derived from
-    the principal component columns (PC_*) so that all rows for a patient land
-    exclusively in either train or test.
+    When the split method is "grouped", group labels are derived from the
+    input columns matched by the configured ``group_by`` patterns, so that all
+    rows of a group land exclusively in either train or test.
     """
     X = df[get_input_columns(config)]
     y = df[get_output_columns(config)]
@@ -63,10 +63,7 @@ def task_prepare_and_split_data(
 
 
 @task(name="setup_mlflow")
-def task_setup_mlflow(
-    tracking_uri: str = "sqlite:///mlruns.db",
-    experiment_name: str = "BoneStrengthML",
-) -> str:
+def task_setup_mlflow(tracking_uri: str, experiment_name: str) -> str:
     """Initialize MLflow tracking."""
     return setup_mlflow(tracking_uri, experiment_name)
 
@@ -90,7 +87,7 @@ def _train_task_run_name() -> str:
 def task_train_model(
     model_config: ModelConfig,
     data: TrainTestData,
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
     random_state: int = 42,
     n_jobs_override: int | None = None,
 ) -> tuple[TrainingResult, str]:
@@ -122,7 +119,7 @@ def task_train_model(
 @task(name="log_experiment_summary")
 def task_log_summary(
     results: list[TrainingResult],
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
 ) -> str:
     """Log experiment summary to MLflow."""
     return log_experiment_summary(results, config)
@@ -133,7 +130,7 @@ def task_verify_model(
     result: TrainingResult,
     X: pd.DataFrame,
     y: pd.DataFrame,
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
     run_id: str,
     random_state: int = 42,
 ) -> VerificationReport:
@@ -154,6 +151,7 @@ def task_register_winner(
     result: TrainingResult,
     run_id: str,
     report: VerificationReport,
+    config: PipelineConfig,
 ) -> str | None:
     """Register the model under the winner's run iff all verification tests passed.
 
@@ -161,5 +159,5 @@ def task_register_winner(
     """
     if not report.all_passed:
         return None
-    model_name = f"BoneStrengthML_{result.output_name}_{result.model_label}"
+    model_name = config.registered_model_name(result.output_name, result.model_label)
     return register_run_model(run_id=run_id, model_name=model_name)

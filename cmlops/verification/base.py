@@ -5,8 +5,8 @@ from typing import Any, Protocol
 
 import pandas as pd
 
-from bonestrength_ml.config import BoneStrengthMLConfig, VerificationTestEntry
-from bonestrength_ml.training.trainer import TrainingResult
+from cmlops.config import PipelineConfig, VerificationTestEntry
+from cmlops.training.trainer import TrainingResult
 
 
 @dataclass
@@ -21,7 +21,7 @@ class VerificationContext:
     result: TrainingResult
     X: pd.DataFrame
     y: pd.DataFrame
-    config: BoneStrengthMLConfig
+    config: PipelineConfig
     entry: VerificationTestEntry
     random_state: int = 42
     prior: "dict[str, TestResult]" = field(default_factory=dict)

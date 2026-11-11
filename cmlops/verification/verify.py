@@ -2,20 +2,20 @@
 
 import pandas as pd
 
-from bonestrength_ml.config import BoneStrengthMLConfig
-from bonestrength_ml.training.trainer import TrainingResult
-from bonestrength_ml.verification.base import (
+from cmlops.config import PipelineConfig
+from cmlops.training.trainer import TrainingResult
+from cmlops.verification.base import (
     VerificationContext,
     VerificationReport,
 )
-from bonestrength_ml.verification.registry import iter_enabled_checks
+from cmlops.verification.registry import iter_enabled_checks
 
 
 def run_full_verification(
     result: TrainingResult,
     X: pd.DataFrame,
     y: pd.DataFrame,
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
     random_state: int = 42,
 ) -> VerificationReport:
     """Run every verification check declared in ``config.verification.test_list``.

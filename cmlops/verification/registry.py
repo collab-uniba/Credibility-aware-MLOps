@@ -9,8 +9,8 @@ or CLI required.
 
 from collections.abc import Iterator
 
-from bonestrength_ml.config import BoneStrengthMLConfig, VerificationTestEntry
-from bonestrength_ml.verification.base import VerificationCheck
+from cmlops.config import PipelineConfig, VerificationTestEntry
+from cmlops.verification.base import VerificationCheck
 
 _CHECKS: dict[str, VerificationCheck] = {}
 
@@ -31,7 +31,7 @@ def get_check(name: str) -> VerificationCheck:
 
 
 def iter_enabled_checks(
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
 ) -> Iterator[tuple[VerificationTestEntry, VerificationCheck]]:
     """Yield (entry, check) pairs in the order declared in YAML."""
     for entry in config.verification.test_list:

@@ -1,6 +1,6 @@
-# Deploying BoneStrengthML on Ubuntu Server
+# Deploying the pipeline on an Ubuntu server
 
-This guide covers deploying the BoneStrengthML training pipeline on an Ubuntu server, including optional Prefect UI setup.
+This guide covers deploying the training and verification pipeline on an Ubuntu server, including optional Prefect UI setup.
 
 ## Port Configuration
 
@@ -51,10 +51,9 @@ uv --version
 ## 4. Clone the Repository
 
 ```bash
-# Clone the specific branch
-git clone -b model-training-staging https://github.com/collab-uniba/BoneStrengthML-SF3_application.git
+git clone https://github.com/collab-uniba/Credibility-aware-MLOps.git
 
-cd BoneStrengthML-SF3_application
+cd Credibility-aware-MLOps
 ```
 
 ## 5. Install Project Dependencies
@@ -68,10 +67,10 @@ uv sync
 
 ```bash
 # Check CLI is available
-uv run bsml --help
+uv run cmlops --help
 
 # List configured models
-uv run bsml list-models
+uv run cmlops list-models
 ```
 
 ## 7. Configure Prefect Server (Optional - for UI)
@@ -92,17 +91,17 @@ The Prefect UI will be available at `http://<server-ip>:${PREFECT_PORT}`
 
 ```bash
 # Train all models
-uv run bsml train
+uv run cmlops train
 
-# Or train specific output/model
-uv run bsml train --output maxStrain_11
+# Or train the models for one output (here, an output of the case study)
+uv run cmlops train --output maxStrain_11
 ```
 
 ## 9. View MLflow Results
 
 ```bash
 # Start MLflow UI on custom port
-uv run bsml mlflow-ui --port ${MLFLOW_PORT}
+uv run cmlops mlflow-ui --port ${MLFLOW_PORT}
 ```
 
 The MLflow UI will be available at `http://<server-ip>:${MLFLOW_PORT}`
@@ -113,7 +112,7 @@ The MLflow UI will be available at `http://<server-ip>:${MLFLOW_PORT}`
 
 For persistent deployment, create systemd services.
 
-**Important:** Replace `<your-user>`, `/path/to/BoneStrengthML-SF3_application`, and port numbers with your actual values.
+**Important:** Replace `<your-user>`, `/path/to/Credibility-aware-MLOps`, and port numbers with your actual values.
 
 ### Prefect Server Service
 
@@ -126,7 +125,7 @@ After=network.target
 [Service]
 Type=simple
 User=<your-user>
-WorkingDirectory=/path/to/BoneStrengthML-SF3_application
+WorkingDirectory=/path/to/Credibility-aware-MLOps
 Environment="PREFECT_API_URL=http://127.0.0.1:4250/api"
 ExecStart=/home/<your-user>/.local/bin/uv run prefect server start --host 0.0.0.0 --port 4250
 Restart=always
@@ -151,8 +150,8 @@ After=network.target
 [Service]
 Type=simple
 User=<your-user>
-WorkingDirectory=/path/to/BoneStrengthML-SF3_application
-ExecStart=/home/<your-user>/.local/bin/uv run bsml mlflow-ui --port 5050
+WorkingDirectory=/path/to/Credibility-aware-MLOps
+ExecStart=/home/<your-user>/.local/bin/uv run cmlops mlflow-ui --port 5050
 Restart=always
 
 [Install]

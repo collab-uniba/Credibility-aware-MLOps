@@ -1,5 +1,8 @@
 # Context of use
 
+This document describes the context of use of BoneStrengthML, the case study to which the pipeline in this repository is applied.
+It is the source of the thresholds in `config/BoneStrengthML.yml`.
+
 ## Application description
 
 BoneStrengthML is intended as an ML-based surrogate of BoneStrength, a complex and resource-demanding biophysical model based on finite element (FE) method.
