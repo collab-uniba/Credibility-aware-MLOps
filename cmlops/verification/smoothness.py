@@ -6,8 +6,8 @@ pipeline's ``VerificationContext`` / ``TestResult`` interface.
 
 from vv4ml import generate_lhs_samples, run_smoothness_test
 
-from bonestrength_ml.verification.base import TestResult, VerificationContext
-from bonestrength_ml.verification.registry import register
+from cmlops.verification.base import TestResult, VerificationContext
+from cmlops.verification.registry import register
 
 
 def smoothness_check(ctx: VerificationContext) -> TestResult:

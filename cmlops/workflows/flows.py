@@ -1,4 +1,4 @@
-"""Prefect flows for BoneStrengthML training + verification pipeline."""
+"""Prefect flows for the training + verification pipeline."""
 
 from pathlib import Path
 
@@ -8,9 +8,9 @@ from prefect import flow
 from prefect.futures import PrefectFuture
 from prefect.task_runners import ThreadPoolTaskRunner
 
-from bonestrength_ml.config import BoneStrengthMLConfig
-from bonestrength_ml.training.trainer import TrainingResult
-from bonestrength_ml.workflows.tasks import (task_load_config, task_load_data,
+from cmlops.config import PipelineConfig
+from cmlops.training.trainer import TrainingResult
+from cmlops.workflows.tasks import (task_load_config, task_load_data,
                                              task_log_summary,
                                              task_prepare_and_split_data,
                                              task_register_winner,
@@ -59,7 +59,7 @@ def _verify_and_register_winners(
     winners: dict[str, tuple[TrainingResult, str]],
     X: pd.DataFrame,
     y: pd.DataFrame,
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
     random_state: int,
 ) -> None:
     """Verify each winner in parallel, then auto-register passing ones.

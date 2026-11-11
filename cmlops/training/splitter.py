@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import GroupShuffleSplit, train_test_split
 
-from bonestrength_ml.config import BoneStrengthMLConfig, TrainTestSplitConfig
+from cmlops.config import PipelineConfig, TrainTestSplitConfig
 
 
 @dataclass
@@ -24,7 +24,7 @@ class TrainTestData:
 def prepare_train_test_split(
     X: pd.DataFrame,
     y: pd.DataFrame,
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
     random_state: int = 42,
 ) -> dict[str, TrainTestData]:
     """Config-aware train/test split for all outputs.

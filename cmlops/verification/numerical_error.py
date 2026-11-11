@@ -6,8 +6,8 @@ pipeline's ``VerificationContext`` / ``TestResult`` interface.
 
 from vv4ml import generate_lhs_samples, run_numerical_error_test
 
-from bonestrength_ml.verification.base import TestResult, VerificationContext
-from bonestrength_ml.verification.registry import register
+from cmlops.verification.base import TestResult, VerificationContext
+from cmlops.verification.registry import register
 
 
 def numerical_error_check(ctx: VerificationContext) -> TestResult:
@@ -21,7 +21,7 @@ def numerical_error_check(ctx: VerificationContext) -> TestResult:
     converge there is no subset size to use and this test fails without
     running.
     """
-    from bonestrength_ml.training.splitter import prepare_train_test_split
+    from cmlops.training.splitter import prepare_train_test_split
 
     output_name = ctx.result.output_name
 

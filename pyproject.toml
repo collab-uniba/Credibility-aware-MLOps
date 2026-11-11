@@ -1,7 +1,7 @@
 [project]
-name = "bonestrengthml-sf3-application"
+name = "cmlops"
 version = "0.1.0"
-description = "Add your description here"
+description = "MLOps framework that embeds verification activities into ML experimentation and tracks the resulting credibility evidence alongside data, runs, and models"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -22,10 +22,10 @@ dependencies = [
 ]
 
 [project.scripts]
-bsml = "bonestrength_ml.cli:app"
+cmlops = "cmlops.cli:app"
 
 [tool.uv]
 package = true
 
 [tool.setuptools.packages.find]
-include = ["bonestrength_ml*"]
+include = ["cmlops*"]

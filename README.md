@@ -47,31 +47,31 @@ uv sync
 Train all configured models for all outputs:
 
 ```bash
-bsml train
+cmlops train
 ```
 
 Train models for a specific output:
 
 ```bash
-bsml train --output maxStrain_11
+cmlops train --output maxStrain_11
 ```
 
 Train a specific model for a specific output:
 
 ```bash
-bsml train --output maxStrain_11 --model RandomForestRegressor
+cmlops train --output maxStrain_11 --model RandomForestRegressor
 ```
 
-By default, `bsml train` runs verification (convergence + smoothness) on the
+By default, `cmlops train` runs verification (convergence + smoothness) on the
 best model per output and **automatically registers** any model that passes
 all configured verification tests in the MLflow Model Registry. To skip
 verification (and therefore registration) for fast iteration:
 
 ```bash
-bsml train --skip-verification
+cmlops train --skip-verification
 ```
 
-The specific-model debug path (`bsml train --output X --model Y`) trains
+The specific-model debug path (`cmlops train --output X --model Y`) trains
 only — no verification, no registration.
 
 Training runs several models at once, and each model's hyperparameter search
@@ -79,7 +79,7 @@ is itself parallel. Two options size both levels so that together they stay
 within a share of the machine's CPUs:
 
 ```bash
-bsml train --max-workers 4 --cpu-fraction 0.5
+cmlops train --max-workers 4 --cpu-fraction 0.5
 ```
 
 `--max-workers` (default 2) is the number of models trained concurrently;
@@ -91,7 +91,7 @@ may use together. Verification is not covered by this budget.
 Start the MLflow UI to explore experiment results:
 
 ```bash
-bsml mlflow-ui
+cmlops mlflow-ui
 ```
 
 Then open http://localhost:5000 in your browser.
@@ -114,7 +114,7 @@ The training pipeline uses Prefect for orchestration, running locally by default
 List configured models:
 
 ```bash
-bsml list-models
+cmlops list-models
 ```
 
 All pipeline behavior is controlled via `config/BoneStrengthML.yml`, including:
@@ -127,7 +127,7 @@ All pipeline behavior is controlled via `config/BoneStrengthML.yml`, including:
 ## Project Structure
 
 ```text
-bonestrength_ml/
+cmlops/
     config.py           # Pydantic configuration models
     data_loading.py     # Data loading and validation with Pandera
     cli.py              # Command-line interface

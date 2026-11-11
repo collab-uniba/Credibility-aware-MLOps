@@ -176,45 +176,6 @@ wheels = [
 ]
 
 [[package]]
-name = "bonestrengthml-sf3-application"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "catboost" },
-    { name = "joblib" },
-    { name = "mlflow" },
-    { name = "nbformat" },
-    { name = "pandas" },
-    { name = "pandera" },
-    { name = "prefect" },
-    { name = "pydantic" },
-    { name = "pyyaml" },
-    { name = "rich" },
-    { name = "scikit-learn" },
-    { name = "typer" },
-    { name = "vv4ml" },
-    { name = "xgboost" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "catboost", specifier = ">=1.2.10" },
-    { name = "joblib", specifier = ">=1.3" },
-    { name = "mlflow", specifier = ">=2.10.0" },
-    { name = "nbformat", specifier = ">=5.10.4" },
-    { name = "pandas", specifier = ">=2.0" },
-    { name = "pandera", specifier = ">=0.20" },
-    { name = "prefect", specifier = ">=3.0.0" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pyyaml", specifier = ">=6.0" },
-    { name = "rich", specifier = ">=13.0.0" },
-    { name = "scikit-learn", specifier = ">=1.8.0" },
-    { name = "typer", specifier = ">=0.12.0" },
-    { name = "vv4ml", specifier = ">=1.0.8" },
-    { name = "xgboost", specifier = ">=3.1.3" },
-]
-
-[[package]]
 name = "cachetools"
 version = "6.2.4"
 source = { registry = "https://pypi.org/simple" }
@@ -427,6 +388,45 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/27/fb/576f067976d320f5f0114a8d9fa1215425441bb35627b1993e5afd8111e5/cloudpickle-3.1.2.tar.gz", hash = "sha256:7fda9eb655c9c230dab534f1983763de5835249750e85fbcef43aaa30a9a2414", size = 22330, upload-time = "2025-11-03T09:25:26.604Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/88/39/799be3f2f0f38cc727ee3b4f1445fe6d5e4133064ec2e4115069418a5bb6/cloudpickle-3.1.2-py3-none-any.whl", hash = "sha256:9acb47f6afd73f60dc1df93bb801b472f05ff42fa6c84167d25cb206be1fbf4a", size = 22228, upload-time = "2025-11-03T09:25:25.534Z" },
+]
+
+[[package]]
+name = "cmlops"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "catboost" },
+    { name = "joblib" },
+    { name = "mlflow" },
+    { name = "nbformat" },
+    { name = "pandas" },
+    { name = "pandera" },
+    { name = "prefect" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+    { name = "rich" },
+    { name = "scikit-learn" },
+    { name = "typer" },
+    { name = "vv4ml" },
+    { name = "xgboost" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "catboost", specifier = ">=1.2.10" },
+    { name = "joblib", specifier = ">=1.3" },
+    { name = "mlflow", specifier = ">=2.10.0" },
+    { name = "nbformat", specifier = ">=5.10.4" },
+    { name = "pandas", specifier = ">=2.0" },
+    { name = "pandera", specifier = ">=0.20" },
+    { name = "prefect", specifier = ">=3.0.0" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pyyaml", specifier = ">=6.0" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "scikit-learn", specifier = ">=1.8.0" },
+    { name = "typer", specifier = ">=0.12.0" },
+    { name = "vv4ml", specifier = ">=1.0.8" },
+    { name = "xgboost", specifier = ">=3.1.3" },
 ]
 
 [[package]]

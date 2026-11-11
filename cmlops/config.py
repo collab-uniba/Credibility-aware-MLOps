@@ -1,4 +1,4 @@
-"""Configuration models for BoneStrengthML pipeline.
+"""Configuration models for the pipeline.
 
 This module defines Pydantic models for validating the YAML configuration file.
 """
@@ -207,8 +207,8 @@ class ModelBuildingConfig(BaseModel):
 # =============================================================================
 
 
-class BoneStrengthMLConfig(BaseModel):
-    """Root configuration for BoneStrengthML pipeline."""
+class PipelineConfig(BaseModel):
+    """Root configuration for the pipeline."""
 
     dataset: DatasetConfig
     gate_thresholds: GateThresholds
@@ -216,14 +216,14 @@ class BoneStrengthMLConfig(BaseModel):
     model_building: ModelBuildingConfig
 
     @classmethod
-    def from_yaml(cls, path: str | Path) -> "BoneStrengthMLConfig":
+    def from_yaml(cls, path: str | Path) -> "PipelineConfig":
         """Load and validate configuration from a YAML file.
 
         Args:
             path: Path to the YAML configuration file.
 
         Returns:
-            Validated BoneStrengthMLConfig instance.
+            Validated PipelineConfig instance.
 
         Raises:
             yaml.YAMLError: If the YAML is invalid.
@@ -235,12 +235,12 @@ class BoneStrengthMLConfig(BaseModel):
         return cls.model_validate(data)
 
 
-# Project root directory (parent of bonestrength_ml package)
+# Project root directory (parent of the cmlops package)
 PROJECT_ROOT = Path(__file__).parent.parent
 
 
-def load_config(path: str | Path = "config/BoneStrengthML.yml") -> BoneStrengthMLConfig:
-    """Load and validate the BoneStrengthML configuration.
+def load_config(path: str | Path = "config/BoneStrengthML.yml") -> PipelineConfig:
+    """Load and validate the pipeline configuration.
 
     Args:
         path: Path to the configuration file. Defaults to config/BoneStrengthML.yml.
@@ -252,4 +252,4 @@ def load_config(path: str | Path = "config/BoneStrengthML.yml") -> BoneStrengthM
     path = Path(path)
     if not path.is_absolute():
         path = PROJECT_ROOT / path
-    return BoneStrengthMLConfig.from_yaml(path)
+    return PipelineConfig.from_yaml(path)

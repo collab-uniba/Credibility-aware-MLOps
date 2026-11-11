@@ -7,7 +7,7 @@ The main architectural dependencies of this project are:
 
 ```mermaid
 architecture-beta
-  service cli(server)[CLI bsml]
+  service cli(server)[CLI cmlops]
   service prefect(server)[Prefect]
   service mlflow(cloud)[MLflow]
 
@@ -23,14 +23,14 @@ automatically registered in the MLflow Model Registry.
 
 ## Prefect workflows
 
-Three Prefect flows are defined in `bonestrength_ml/workflows/flows.py`, each
+Three Prefect flows are defined in `cmlops/workflows/flows.py`, each
 mapped to a CLI invocation:
 
 | Flow | CLI invocation | Behavior |
 |------|----------------|----------|
-| `train_all_outputs_flow` | `bsml train` | Trains every configured model for both output variables, verifies and registers the per-output winners. |
-| `train_single_output_flow` | `bsml train --output X` | Trains every configured model for one output (`maxStrain_11` or `maxStrain_33`), verifies and registers the winner. |
-| `train_specific_model_flow` | `bsml train --output X --model Y` | Trains one model for one output. Debug/retrain shortcut: **no verification, no registration**. |
+| `train_all_outputs_flow` | `cmlops train` | Trains every configured model for both output variables, verifies and registers the per-output winners. |
+| `train_single_output_flow` | `cmlops train --output X` | Trains every configured model for one output (`maxStrain_11` or `maxStrain_33`), verifies and registers the winner. |
+| `train_specific_model_flow` | `cmlops train --output X --model Y` | Trains one model for one output. Debug/retrain shortcut: **no verification, no registration**. |
 
 The first two flows accept `--skip-verification` to stop after training (and
 therefore skip registration too).
@@ -88,9 +88,9 @@ are registered in the MLflow Model Registry. Each box in the diagram lists the P
 
 ### Tasks
 
-The tasks (defined in `bonestrength_ml/workflows/tasks.py`) are thin Prefect
-wrappers around the library code in `bonestrength_ml/training/`,
-`bonestrength_ml/verification/`, and `bonestrength_ml/data_loading.py`:
+The tasks (defined in `cmlops/workflows/tasks.py`) are thin Prefect
+wrappers around the library code in `cmlops/training/`,
+`cmlops/verification/`, and `cmlops/data_loading.py`:
 
 | Task | Purpose | Notes |
 |------|---------|-------|
@@ -127,7 +127,7 @@ retrain models through `vv4ml`, with each library's default threading.
 
 ## Verification suite
 
-Verification (`bonestrength_ml/verification/`) is a pluggable, registry-based
+Verification (`cmlops/verification/`) is a pluggable, registry-based
 suite inspired by the ASME V&V 40 standard. The tests themselves are
 implemented by the [vv4ml](https://github.com/collab-uniba/vv4ml) library; the
 modules in this package adapt them to the pipeline:
@@ -177,7 +177,7 @@ relying only on the observed data.
 
 ## MLflow integration
 
-MLflow utilities live in `bonestrength_ml/training/mlflow_utils.py`. By default
+MLflow utilities live in `cmlops/training/mlflow_utils.py`. By default
 tracking uses a local SQLite backend (`sqlite:///mlruns.db`) under the
 `BoneStrengthML` experiment; both are overridable via CLI options.
 
@@ -199,7 +199,7 @@ tracking uses a local SQLite backend (`sqlite:///mlruns.db`) under the
 
 ## CLI
 
-The workflows are executed through a CLI defined in `bonestrength_ml/cli.py`
+The workflows are executed through a CLI defined in `cmlops/cli.py`
 using **Typer**, with **Rich** for formatted console output. Besides `train`
 (see the flow table above), the CLI provides `list-models` (shows the
 configured models and their hyperparameter search spaces) and `mlflow-ui`
@@ -209,7 +209,7 @@ configured models and their hyperparameter search spaces) and `mlflow-ui`
 
 Workflows in this project are configuration-driven. A single YAML file,
 `config/BoneStrengthML.yml`, drives all three workflows. It is loaded and
-validated using **Pydantic** models (`bonestrength_ml/config.py`) at the
+validated using **Pydantic** models (`cmlops/config.py`) at the
 beginning of each workflow, so a malformed configuration fails fast. It
 specifies:
 
@@ -227,12 +227,12 @@ specifies:
 ## Data loading and validation
 
 Data is loaded from CSV and validated using **Pandera**
-(`bonestrength_ml/data_loading.py`). The Pandera schema is generated
+(`cmlops/data_loading.py`). The Pandera schema is generated
 dynamically from the dataset section of the configuration: each field gets a
 type, range, and nullability check, the schema is strict (unexpected columns
 fail validation), and duplicate rows are rejected unless explicitly allowed.
 
-Train/test splitting (`bonestrength_ml/training/splitter.py`) supports two
+Train/test splitting (`cmlops/training/splitter.py`) supports two
 methods, selected in the configuration:
 
 - **`random`**: plain row-level random split;

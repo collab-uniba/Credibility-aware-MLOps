@@ -12,9 +12,9 @@ import pandas as pd
 from mlflow.models import infer_signature
 from sklearn.base import BaseEstimator
 
-from bonestrength_ml.config import BoneStrengthMLConfig
-from bonestrength_ml.training.trainer import TrainingResult
-from bonestrength_ml.verification.base import VerificationReport
+from cmlops.config import PipelineConfig
+from cmlops.training.trainer import TrainingResult
+from cmlops.verification.base import VerificationReport
 
 
 @dataclass
@@ -55,7 +55,7 @@ def setup_mlflow(
 
 def log_training_result(
     result: TrainingResult,
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
     X_sample: pd.DataFrame,
     run_name: str | None = None,
 ) -> str:
@@ -159,7 +159,7 @@ def log_verification_results(run_id: str, report: VerificationReport) -> None:
 
 def log_experiment_summary(
     results: list[TrainingResult],
-    config: BoneStrengthMLConfig,
+    config: PipelineConfig,
 ) -> str:
     """Log a summary run comparing all models.
 
@@ -249,7 +249,7 @@ def load_best_run(
     if experiment is None:
         raise ValueError(
             f"Experiment '{experiment_name}' not found. "
-            "Run training first with: bsml train"
+            "Run training first with: cmlops train"
         )
 
     filter_parts = [f"params.output_name = '{output_name}'"]
@@ -270,7 +270,7 @@ def load_best_run(
             filter_desc += f", model_type='{model_type}'"
         raise ValueError(
             f"No runs found matching {filter_desc} in experiment '{experiment_name}'. "
-            "Run training first with: bsml train"
+            "Run training first with: cmlops train"
         )
 
     best_run_id = runs.iloc[0]["run_id"]

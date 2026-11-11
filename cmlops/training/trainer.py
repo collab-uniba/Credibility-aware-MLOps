@@ -7,14 +7,14 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.model_selection import GridSearchCV, GroupKFold, RandomizedSearchCV
 
-from bonestrength_ml.config import ModelConfig, OptimizationConfig
-from bonestrength_ml.training.metrics import evaluate_predictions, rmse_scorer
-from bonestrength_ml.training.model_factory import (
+from cmlops.config import ModelConfig, OptimizationConfig
+from cmlops.training.metrics import evaluate_predictions, rmse_scorer
+from cmlops.training.model_factory import (
     create_model,
     get_param_grid,
     normalize_gpr_best_params,
 )
-from bonestrength_ml.training.splitter import TrainTestData
+from cmlops.training.splitter import TrainTestData
 
 
 @dataclass

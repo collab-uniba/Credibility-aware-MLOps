@@ -16,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVR
 from xgboost import XGBRegressor
 
-from bonestrength_ml.config import ModelConfig
+from cmlops.config import ModelConfig
 
 
 MODEL_REGISTRY: dict[str, type[BaseEstimator]] = {

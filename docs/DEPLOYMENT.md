@@ -68,10 +68,10 @@ uv sync
 
 ```bash
 # Check CLI is available
-uv run bsml --help
+uv run cmlops --help
 
 # List configured models
-uv run bsml list-models
+uv run cmlops list-models
 ```
 
 ## 7. Configure Prefect Server (Optional - for UI)
@@ -92,17 +92,17 @@ The Prefect UI will be available at `http://<server-ip>:${PREFECT_PORT}`
 
 ```bash
 # Train all models
-uv run bsml train
+uv run cmlops train
 
 # Or train specific output/model
-uv run bsml train --output maxStrain_11
+uv run cmlops train --output maxStrain_11
 ```
 
 ## 9. View MLflow Results
 
 ```bash
 # Start MLflow UI on custom port
-uv run bsml mlflow-ui --port ${MLFLOW_PORT}
+uv run cmlops mlflow-ui --port ${MLFLOW_PORT}
 ```
 
 The MLflow UI will be available at `http://<server-ip>:${MLFLOW_PORT}`
@@ -152,7 +152,7 @@ After=network.target
 Type=simple
 User=<your-user>
 WorkingDirectory=/path/to/BoneStrengthML-SF3_application
-ExecStart=/home/<your-user>/.local/bin/uv run bsml mlflow-ui --port 5050
+ExecStart=/home/<your-user>/.local/bin/uv run cmlops mlflow-ui --port 5050
 Restart=always
 
 [Install]

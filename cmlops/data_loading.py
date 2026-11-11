@@ -1,4 +1,4 @@
-"""Data loading and validation module for BoneStrengthML pipeline.
+"""Data loading and validation module for the pipeline.
 
 This module provides functionality to:
 - Load raw data from CSV files based on configuration
@@ -11,8 +11,8 @@ import pandas as pd
 import pandera.pandas as pa
 from pandera.pandas import Column, DataFrameSchema
 
-from bonestrength_ml.config import (
-    BoneStrengthMLConfig,
+from cmlops.config import (
+    PipelineConfig,
     DatasetConfig,
     InputField,
     OutputField,
@@ -91,13 +91,13 @@ def build_schema_from_config(dataset_config: DatasetConfig) -> DataFrameSchema:
 
 
 def load_raw_data(
-    config: BoneStrengthMLConfig | None = None,
+    config: PipelineConfig | None = None,
     data_path: str | Path | None = None,
 ) -> pd.DataFrame:
     """Load raw data from CSV file based on configuration.
 
     Args:
-        config: BoneStrengthML configuration. If None, loads from default path.
+        config: Pipeline configuration. If None, loads from default path.
         data_path: Override path for data file. If None, uses path from config.
 
     Returns:
@@ -142,14 +142,14 @@ def load_raw_data(
 
 def validate_data(
     df: pd.DataFrame,
-    config: BoneStrengthMLConfig | None = None,
+    config: PipelineConfig | None = None,
     schema: DataFrameSchema | None = None,
 ) -> pd.DataFrame:
     """Validate a DataFrame against the schema derived from configuration.
 
     Args:
         df: DataFrame to validate.
-        config: BoneStrengthML configuration. If None, loads from default path.
+        config: Pipeline configuration. If None, loads from default path.
         schema: Pre-built schema. If None, builds from config.
 
     Returns:
@@ -174,7 +174,7 @@ def validate_data(
 
 
 def load_and_validate_data(
-    config: BoneStrengthMLConfig | None = None,
+    config: PipelineConfig | None = None,
     data_path: str | Path | None = None,
 ) -> pd.DataFrame:
     """Load and validate raw data in a single step.
@@ -182,7 +182,7 @@ def load_and_validate_data(
     This is the main entry point for loading data in the pipeline.
 
     Args:
-        config: BoneStrengthML configuration. If None, loads from default path.
+        config: Pipeline configuration. If None, loads from default path.
         data_path: Override path for data file. If None, uses path from config.
 
     Returns:
@@ -193,7 +193,7 @@ def load_and_validate_data(
         DataValidationError: If validation fails.
 
     Example:
-        >>> from bonestrength_ml.data_loading import load_and_validate_data
+        >>> from cmlops.data_loading import load_and_validate_data
         >>> df = load_and_validate_data()
         >>> df.shape
         (1000000, 97)
@@ -207,11 +207,11 @@ def load_and_validate_data(
     return validated_df
 
 
-def get_input_columns(config: BoneStrengthMLConfig | None = None) -> list[str]:
+def get_input_columns(config: PipelineConfig | None = None) -> list[str]:
     """Get list of input column names from configuration.
 
     Args:
-        config: BoneStrengthML configuration. If None, loads from default path.
+        config: Pipeline configuration. If None, loads from default path.
 
     Returns:
         List of input column names.
@@ -221,11 +221,11 @@ def get_input_columns(config: BoneStrengthMLConfig | None = None) -> list[str]:
     return [field.name for field in config.dataset.inputs]
 
 
-def get_output_columns(config: BoneStrengthMLConfig | None = None) -> list[str]:
+def get_output_columns(config: PipelineConfig | None = None) -> list[str]:
     """Get list of output column names from configuration.
 
     Args:
-        config: BoneStrengthML configuration. If None, loads from default path.
+        config: Pipeline configuration. If None, loads from default path.
 
     Returns:
         List of output column names.

@@ -1,4 +1,4 @@
-"""CLI for BoneStrengthML training + verification pipeline."""
+"""CLI for the training + verification pipeline."""
 
 import subprocess
 from typing import Optional
@@ -8,8 +8,8 @@ from rich.console import Console
 from rich.table import Table
 
 app = typer.Typer(
-    name="bsml",
-    help="BoneStrengthML training pipeline with MLflow tracking",
+    name="cmlops",
+    help="Training and verification pipeline with MLflow tracking",
 )
 console = Console()
 
@@ -86,20 +86,20 @@ def train(
 
     Behavior:
 
-      bsml train                          -> trains all models x both outputs,
-                                              verifies the 2 winners, registers
-                                              passing winners to MLflow Registry.
+      cmlops train                          -> trains all models x both outputs,
+                                                verifies the 2 winners, registers
+                                                passing winners to MLflow Registry.
 
-      bsml train --output X               -> trains all models for one output,
-                                              verifies + registers the winner.
+      cmlops train --output X               -> trains all models for one output,
+                                                verifies + registers the winner.
 
-      bsml train --output X --model Y     -> trains one specific model. Debug/
-                                              retrain shortcut: NO verification,
-                                              NO registration.
+      cmlops train --output X --model Y     -> trains one specific model. Debug/
+                                                retrain shortcut: NO verification,
+                                                NO registration.
     """
     from prefect.task_runners import ThreadPoolTaskRunner
 
-    from bonestrength_ml.workflows.flows import (
+    from cmlops.workflows.flows import (
         train_all_outputs_flow,
         train_single_output_flow,
         train_specific_model_flow,
@@ -109,7 +109,7 @@ def train(
     # n_jobs against the CPU budget so the two levels don't oversubscribe.
     task_runner = ThreadPoolTaskRunner(max_workers=max_workers)
 
-    console.print("[bold blue]BoneStrengthML Training Pipeline[/bold blue]")
+    console.print("[bold blue]Training + Verification Pipeline[/bold blue]")
     console.print(f"MLflow URI: {mlflow_uri}")
     console.print(f"Experiment: {experiment}")
     console.print(f"Random seed: {seed}")
@@ -192,7 +192,7 @@ def list_models(
     ),
 ) -> None:
     """List configured models from config file."""
-    from bonestrength_ml.config import load_config
+    from cmlops.config import load_config
 
     cfg = load_config(config) if config else load_config()
 

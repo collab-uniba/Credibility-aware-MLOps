@@ -6,8 +6,8 @@ pipeline's ``VerificationContext`` / ``TestResult`` interface.
 
 from vv4ml import generate_lhs_samples, run_convergence_test
 
-from bonestrength_ml.verification.base import TestResult, VerificationContext
-from bonestrength_ml.verification.registry import register
+from cmlops.verification.base import TestResult, VerificationContext
+from cmlops.verification.registry import register
 
 
 def convergence_check(ctx: VerificationContext) -> TestResult:
@@ -17,7 +17,7 @@ def convergence_check(ctx: VerificationContext) -> TestResult:
     those points are the reference predictions to which subset-trained models
     are compared, using the metric configured for the output's threshold.
     """
-    from bonestrength_ml.training.splitter import prepare_train_test_split
+    from cmlops.training.splitter import prepare_train_test_split
 
     output_name = ctx.result.output_name
 
