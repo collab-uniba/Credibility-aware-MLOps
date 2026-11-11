@@ -92,18 +92,24 @@ def task_train_model(
     data: TrainTestData,
     config: BoneStrengthMLConfig,
     random_state: int = 42,
+    n_jobs_override: int | None = None,
 ) -> tuple[TrainingResult, str]:
     """Train a single model and log it to MLflow immediately.
 
     Logging happens here (rather than in a later, sequential step) so each
     model's run appears in MLflow as soon as that model finishes training,
     in parallel with the others. Returns ``(result, run_id)``.
+
+    ``n_jobs_override`` lets the flow size CV-search parallelism against a
+    global CPU budget instead of the per-model config value (see
+    ``workflows.flows``).
     """
     result = train_single_model(
         model_config=model_config,
         data=data,
         global_optimization=config.model_building.optimization,
         random_state=random_state,
+        n_jobs_override=n_jobs_override,
     )
     run_id = log_training_result(
         result=result,

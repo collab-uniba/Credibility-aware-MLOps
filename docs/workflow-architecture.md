@@ -108,6 +108,23 @@ Prefect future (one per model × output combination), and the flow blocks on
 `.result()` only when it needs the trained models to build the summary and pick
 winners. Verification runs the same way, one future per winner.
 
+Training parallelism has two nested levels, sized against a CPU budget so that
+they do not oversubscribe the machine:
+
+- **Concurrent training tasks.** The flows run on a `ThreadPoolTaskRunner`
+  capped at `--max-workers` tasks at a time (default 2).
+- **Parallel hyperparameter search.** Each task's cross-validated search gets
+  `n_jobs = budget // max_workers` worker processes, where the budget is
+  `--cpu-fraction` (default 0.9) of the CPUs available to the process. This
+  value overrides `optimization.n_jobs` from the configuration, which is only
+  used by the single-model path (`--output X --model Y`).
+
+Estimators that are multi-threaded themselves (random forest, XGBoost,
+CatBoost) are pinned to one thread in the configuration (`n_jobs: 1` /
+`thread_count: 1` among their hyperparameters), so that all parallelism comes
+from the search. The budget covers training only: the verification tests
+retrain models through `vv4ml`, with each library's default threading.
+
 ## Verification suite
 
 Verification (`bonestrength_ml/verification/`) is a pluggable, registry-based

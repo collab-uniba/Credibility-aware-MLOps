@@ -36,6 +36,7 @@ def train_single_model(
     data: TrainTestData,
     global_optimization: OptimizationConfig,
     random_state: int = 42,
+    n_jobs_override: int | None = None,
 ) -> TrainingResult:
     """Train a single model with hyperparameter optimization.
 
@@ -44,6 +45,10 @@ def train_single_model(
         data: TrainTestData with X_train, y_train, X_test, y_test.
         global_optimization: Global optimization config (used if model-specific is None).
         random_state: Random seed.
+        n_jobs_override: When set, overrides the config's ``n_jobs`` for the CV
+            search. The orchestrating flow uses this to size search parallelism
+            against a global CPU budget (see ``workflows.flows``). When ``None``,
+            the config value is used.
 
     Returns:
         TrainingResult with trained model and metrics.
@@ -69,6 +74,7 @@ def train_single_model(
             opt_config=opt_config,
             random_state=random_state,
             groups_train=data.groups_train,
+            n_jobs_override=n_jobs_override,
         )
         search.fit(data.X_train, data.y_train, groups=data.groups_train)
         best_estimator = search.best_estimator_
@@ -103,15 +109,18 @@ def _create_search(
     opt_config: OptimizationConfig,
     random_state: int,
     groups_train: np.ndarray | None = None,
+    n_jobs_override: int | None = None,
 ) -> GridSearchCV | RandomizedSearchCV:
     """Create the appropriate search object based on config."""
     cv = GroupKFold(n_splits=opt_config.cv) if groups_train is not None else opt_config.cv
+
+    n_jobs = n_jobs_override if n_jobs_override is not None else opt_config.n_jobs
 
     common_kwargs = {
         "estimator": base_model,
         "scoring": rmse_scorer,
         "cv": cv,
-        "n_jobs": opt_config.n_jobs,
+        "n_jobs": n_jobs,
         "return_train_score": True,
         "verbose": 1,
     }
