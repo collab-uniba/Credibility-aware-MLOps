@@ -1,6 +1,7 @@
 """Data splitting utilities based on configuration."""
 
 from dataclasses import dataclass
+from fnmatch import fnmatchcase
 
 import numpy as np
 import pandas as pd
@@ -30,7 +31,8 @@ def prepare_train_test_split(
     """Config-aware train/test split for all outputs.
 
     Derives group labels when the configured split method is "grouped"
-    (using PC_* columns to identify patients), then delegates to
+    (rows sharing the same values in the input columns matched by the
+    configured ``group_by`` patterns form a group), then delegates to
     :func:`split_data_for_all_outputs`.
 
     This is the single entry point that both the training pipeline and
@@ -49,8 +51,16 @@ def prepare_train_test_split(
 
     groups = None
     if split_config.method == "grouped":
-        pc_columns = [f.name for f in config.dataset.inputs if f.name.startswith("PC_")]
-        groups = X.groupby(pc_columns, sort=False).ngroup().values
+        group_columns = [
+            f.name
+            for f in config.dataset.inputs
+            if any(fnmatchcase(f.name, pattern) for pattern in split_config.group_by)
+        ]
+        if not group_columns:
+            raise ValueError(
+                f"group_by patterns {split_config.group_by} match no input field"
+            )
+        groups = X.groupby(group_columns, sort=False).ngroup().values
 
     return split_data_for_all_outputs(
         X,
@@ -76,7 +86,7 @@ def split_data_for_all_outputs(
     Supports two methods:
     - "random": simple random split of individual rows.
     - "grouped": group-aware split that keeps all rows belonging to
-      the same group (e.g., same patient) in either train or test,
+      the same group (e.g., the same subject) in either train or test,
       never both. Requires the ``groups`` parameter.
 
     Note: when method is "grouped", ``train_fraction`` controls the

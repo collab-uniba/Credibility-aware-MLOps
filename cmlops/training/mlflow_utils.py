@@ -27,14 +27,11 @@ class BestRunInfo:
     run_id: str
 
 
-def setup_mlflow(
-    tracking_uri: str = "sqlite:///mlruns.db",
-    experiment_name: str = "BoneStrengthML",
-) -> str:
-    """Configure MLflow tracking with SQLite backend.
+def setup_mlflow(tracking_uri: str, experiment_name: str) -> str:
+    """Configure MLflow tracking and select the experiment.
 
     Args:
-        tracking_uri: MLflow tracking URI (default: local SQLite).
+        tracking_uri: MLflow tracking URI.
         experiment_name: Name of the MLflow experiment.
 
     Returns:
@@ -201,8 +198,8 @@ def log_experiment_summary(
 
 def load_best_run(
     output_name: str,
+    experiment_name: str,
     tracking_uri: str = "sqlite:///mlruns.db",
-    experiment_name: str = "BoneStrengthML",
     model_type: str | None = None,
     run_id: str | None = None,
 ) -> BestRunInfo:
@@ -213,9 +210,9 @@ def load_best_run(
     the given ``output_name`` (and ``model_type`` if specified).
 
     Args:
-        output_name: Target output name (e.g. "maxStrain_11").
-        tracking_uri: MLflow tracking URI.
+        output_name: Target output name.
         experiment_name: MLflow experiment name.
+        tracking_uri: MLflow tracking URI.
         model_type: Optional model type filter (e.g. "RandomForestRegressor").
         run_id: Optional specific run ID to load.
 

@@ -33,7 +33,8 @@ def train(
         None,
         "--output",
         "-o",
-        help="Specific output to train (maxStrain_11, maxStrain_33). Trains all if not specified.",
+        help="Specific output to train, among those declared in the configuration. "
+        "Trains all if not specified.",
     ),
     model: Optional[str] = typer.Option(
         None,
@@ -46,11 +47,11 @@ def train(
         "--mlflow-uri",
         help="MLflow tracking URI",
     ),
-    experiment: str = typer.Option(
-        "BoneStrengthML",
+    experiment: Optional[str] = typer.Option(
+        None,
         "--experiment",
         "-e",
-        help="MLflow experiment name",
+        help="MLflow experiment name. Defaults to the project name in the configuration.",
     ),
     seed: int = typer.Option(
         42,
@@ -86,9 +87,10 @@ def train(
 
     Behavior:
 
-      cmlops train                          -> trains all models x both outputs,
-                                                verifies the 2 winners, registers
-                                                passing winners to MLflow Registry.
+      cmlops train                          -> trains all models x all outputs,
+                                                verifies the winner per output,
+                                                registers passing winners to the
+                                                MLflow Registry.
 
       cmlops train --output X               -> trains all models for one output,
                                                 verifies + registers the winner.
@@ -111,7 +113,7 @@ def train(
 
     console.print("[bold blue]Training + Verification Pipeline[/bold blue]")
     console.print(f"MLflow URI: {mlflow_uri}")
-    console.print(f"Experiment: {experiment}")
+    console.print(f"Experiment: {experiment or 'project name from the configuration'}")
     console.print(f"Random seed: {seed}")
     console.print()
 

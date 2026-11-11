@@ -87,10 +87,11 @@ def _verify_and_register_winners(
         print(f"  Verification for {output_name}: {status} ({per_test})")
 
         registered = task_register_winner(
-            result=result, run_id=run_id, report=report
+            result=result, run_id=run_id, report=report, config=config
         )
         if registered:
-            print(f"  Registered: BoneStrengthML_{output_name}_{result.model_label}")
+            model_name = config.registered_model_name(output_name, result.model_label)
+            print(f"  Registered: {model_name}")
         else:
             print(f"  Registration skipped for {output_name} (verification failed)")
 
@@ -103,7 +104,7 @@ def train_single_output_flow(
     output_name: str,
     config_path: str | Path | None = None,
     mlflow_tracking_uri: str = "sqlite:///mlruns.db",
-    experiment_name: str = "BoneStrengthML",
+    experiment_name: str | None = None,
     random_state: int = 42,
     skip_verification: bool = False,
     max_workers: int = DEFAULT_MAX_WORKERS,
@@ -118,7 +119,7 @@ def train_single_output_flow(
     CLI does this); the decorator default keeps direct calls consistent.
     """
     config = task_load_config(config_path)
-    task_setup_mlflow(mlflow_tracking_uri, experiment_name)
+    task_setup_mlflow(mlflow_tracking_uri, experiment_name or config.project.name)
 
     df = task_load_data(config)
     X, y, split_data = task_prepare_and_split_data(df, config, random_state)
@@ -160,7 +161,7 @@ def train_single_output_flow(
 def train_all_outputs_flow(
     config_path: str | Path | None = None,
     mlflow_tracking_uri: str = "sqlite:///mlruns.db",
-    experiment_name: str = "BoneStrengthML",
+    experiment_name: str | None = None,
     random_state: int = 42,
     skip_verification: bool = False,
     max_workers: int = DEFAULT_MAX_WORKERS,
@@ -175,7 +176,7 @@ def train_all_outputs_flow(
     CLI does this); the decorator default keeps direct calls consistent.
     """
     config = task_load_config(config_path)
-    task_setup_mlflow(mlflow_tracking_uri, experiment_name)
+    task_setup_mlflow(mlflow_tracking_uri, experiment_name or config.project.name)
 
     df = task_load_data(config)
     X, y, all_split_data = task_prepare_and_split_data(df, config, random_state)
@@ -242,7 +243,7 @@ def train_specific_model_flow(
     output_name: str,
     config_path: str | Path | None = None,
     mlflow_tracking_uri: str = "sqlite:///mlruns.db",
-    experiment_name: str = "BoneStrengthML",
+    experiment_name: str | None = None,
     random_state: int = 42,
 ) -> TrainingResult:
     """Train a specific model for a specific output.
@@ -251,7 +252,7 @@ def train_specific_model_flow(
     or single-output flow to produce a registered model.
     """
     config = task_load_config(config_path)
-    task_setup_mlflow(mlflow_tracking_uri, experiment_name)
+    task_setup_mlflow(mlflow_tracking_uri, experiment_name or config.project.name)
 
     model_config = None
     for mc in config.model_building.model_list:

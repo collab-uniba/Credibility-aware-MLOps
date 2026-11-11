@@ -10,6 +10,21 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 # =============================================================================
+# Project Configuration Models
+# =============================================================================
+
+
+class ProjectConfig(BaseModel):
+    """Identity of the project the pipeline is applied to.
+
+    The name is the default MLflow experiment name and the prefix of the
+    registered model names.
+    """
+
+    name: str
+
+
+# =============================================================================
 # Dataset Configuration Models
 # =============================================================================
 
@@ -137,6 +152,18 @@ class TrainTestSplitConfig(BaseModel):
 
     train_fraction: float = Field(gt=0, lt=1)
     method: Literal["random", "grouped"] = "random"
+    group_by: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def require_group_by_when_grouped(self) -> "TrainTestSplitConfig":
+        """Require the grouping columns when the split method is "grouped".
+
+        ``group_by`` lists input field names or glob patterns (e.g. ``shape_*``);
+        rows sharing the same values in the matching columns form a group.
+        """
+        if self.method == "grouped" and not self.group_by:
+            raise ValueError('group_by is required when method is "grouped"')
+        return self
 
 
 class PreprocessingConfig(BaseModel):
@@ -210,10 +237,15 @@ class ModelBuildingConfig(BaseModel):
 class PipelineConfig(BaseModel):
     """Root configuration for the pipeline."""
 
+    project: ProjectConfig
     dataset: DatasetConfig
     gate_thresholds: GateThresholds
     verification: VerificationConfig = Field(default_factory=VerificationConfig)
     model_building: ModelBuildingConfig
+
+    def registered_model_name(self, output_name: str, model_label: str) -> str:
+        """Name under which a model is registered in the MLflow Model Registry."""
+        return f"{self.project.name}_{output_name}_{model_label}"
 
     @classmethod
     def from_yaml(cls, path: str | Path) -> "PipelineConfig":
@@ -239,11 +271,16 @@ class PipelineConfig(BaseModel):
 PROJECT_ROOT = Path(__file__).parent.parent
 
 
-def load_config(path: str | Path = "config/BoneStrengthML.yml") -> PipelineConfig:
+# Configuration loaded when none is given: the case study of the paper this
+# repository accompanies (the BoneStrengthML surrogate model).
+DEFAULT_CONFIG_PATH = Path("config/BoneStrengthML.yml")
+
+
+def load_config(path: str | Path = DEFAULT_CONFIG_PATH) -> PipelineConfig:
     """Load and validate the pipeline configuration.
 
     Args:
-        path: Path to the configuration file. Defaults to config/BoneStrengthML.yml.
+        path: Path to the configuration file. Defaults to DEFAULT_CONFIG_PATH.
               Relative paths are resolved from the project root directory.
 
     Returns:

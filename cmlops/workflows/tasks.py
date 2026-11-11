@@ -52,9 +52,9 @@ def task_prepare_and_split_data(
     downstream verification) plus the per-output ``TrainTestData`` splits used
     for training.
 
-    When the split method is "grouped", patient group labels are derived from
-    the principal component columns (PC_*) so that all rows for a patient land
-    exclusively in either train or test.
+    When the split method is "grouped", group labels are derived from the
+    input columns matched by the configured ``group_by`` patterns, so that all
+    rows of a group land exclusively in either train or test.
     """
     X = df[get_input_columns(config)]
     y = df[get_output_columns(config)]
@@ -63,10 +63,7 @@ def task_prepare_and_split_data(
 
 
 @task(name="setup_mlflow")
-def task_setup_mlflow(
-    tracking_uri: str = "sqlite:///mlruns.db",
-    experiment_name: str = "BoneStrengthML",
-) -> str:
+def task_setup_mlflow(tracking_uri: str, experiment_name: str) -> str:
     """Initialize MLflow tracking."""
     return setup_mlflow(tracking_uri, experiment_name)
 
@@ -154,6 +151,7 @@ def task_register_winner(
     result: TrainingResult,
     run_id: str,
     report: VerificationReport,
+    config: PipelineConfig,
 ) -> str | None:
     """Register the model under the winner's run iff all verification tests passed.
 
@@ -161,5 +159,5 @@ def task_register_winner(
     """
     if not report.all_passed:
         return None
-    model_name = f"BoneStrengthML_{result.output_name}_{result.model_label}"
+    model_name = config.registered_model_name(result.output_name, result.model_label)
     return register_run_model(run_id=run_id, model_name=model_name)
