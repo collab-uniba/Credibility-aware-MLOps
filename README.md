@@ -299,5 +299,4 @@ config/                 # Case-study configuration
 data/raw/               # Case-study dataset (DVC pointer; the file is downloaded from the DVC remote)
 .dvc/                   # DVC configuration
 docs/                   # Workflow architecture, deployment guide, case-study context of use
-notebooks/              # Data loading and validation demo
 ```
