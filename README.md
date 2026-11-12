@@ -49,7 +49,7 @@ Lineage, training record, and accuracy outcome are logged for every trained mode
 
 ### Data versioning
 
-The dataset is versioned with DVC. Git tracks a small pointer file, `data/raw/sampleDataset.csv.dvc`, that holds the MD5 of the dataset; the dataset itself is stored in the DVC remote and downloaded with `dvc pull`. A git commit therefore pins the code, the configuration, and the data version together.
+The dataset is versioned with DVC. Git tracks a small pointer file, `data/raw/sampleDataset.csv.dvc`, that holds the MD5 of the dataset; the dataset itself is stored in the DVC remote, hosted on [DagsHub](https://dagshub.com/louieQ/Credibility-aware-MLOps), and downloaded with `dvc pull`. A git commit therefore pins the code, the configuration, and the data version together.
 
 The pipeline ties each run to that version in two ways:
 
