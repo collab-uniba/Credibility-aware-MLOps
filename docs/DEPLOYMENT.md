@@ -63,9 +63,12 @@ cd Credibility-aware-MLOps
 # Install all dependencies (including Prefect)
 uv sync
 
-# Download the case-study dataset from the DVC remote
-uv run dvc pull
+# Download the case-study dataset (the version of the checked-out commit)
+curl -L -o data/raw/sampleDataset.csv \
+  "https://dagshub.com/louieQ/Credibility-aware-MLOps/raw/$(git rev-parse HEAD)/data/raw/sampleDataset.csv"
 ```
+
+With a DagsHub account, the dataset can also be downloaded with `uv run dvc pull`; see "Getting the dataset" in the README.
 
 ## 6. Verify Installation
 

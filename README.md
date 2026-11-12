@@ -49,7 +49,7 @@ Lineage, training record, and accuracy outcome are logged for every trained mode
 
 ### Data versioning
 
-The dataset is versioned with DVC. Git tracks a small pointer file, `data/raw/sampleDataset.csv.dvc`, that holds the MD5 of the dataset; the dataset itself is stored in the DVC remote, hosted on [DagsHub](https://dagshub.com/louieQ/Credibility-aware-MLOps), and downloaded with `dvc pull`. A git commit therefore pins the code, the configuration, and the data version together.
+The dataset is versioned with DVC. Git tracks a small pointer file, `data/raw/sampleDataset.csv.dvc`, that holds the MD5 of the dataset; the dataset itself is stored in the DVC remote, hosted on [DagsHub](https://dagshub.com/louieQ/Credibility-aware-MLOps) (see [Getting the dataset](#getting-the-dataset)). A git commit therefore pins the code, the configuration, and the data version together.
 
 The pipeline ties each run to that version in two ways:
 
@@ -91,10 +91,29 @@ cd Credibility-aware-MLOps
 
 # Install dependencies
 uv sync
+```
 
-# Download the case-study dataset
+### Getting the dataset
+
+The case-study dataset is not in the git repository; it is downloaded from the DVC remote on DagsHub. Without a DagsHub account, download the version that belongs to the checked-out commit:
+
+```bash
+curl -L -o data/raw/sampleDataset.csv \
+  "https://dagshub.com/louieQ/Credibility-aware-MLOps/raw/$(git rev-parse HEAD)/data/raw/sampleDataset.csv"
+```
+
+The pipeline checks the downloaded file against the MD5 in `data/raw/sampleDataset.csv.dvc` before using it (see [Data versioning](#data-versioning)).
+
+DagsHub does not serve `dvc pull` to anonymous users. To use DVC, which is needed to record new versions of the dataset, create a DagsHub account and an access token, and store them in the local, untracked DVC configuration:
+
+```bash
+uv run dvc remote modify origin --local auth basic
+uv run dvc remote modify origin --local user <your-dagshub-username>
+uv run dvc remote modify origin --local password <your-dagshub-token>
 uv run dvc pull
 ```
+
+Pushing data also requires write access to the DagsHub repository.
 
 The commands below assume the project environment is active (`source .venv/bin/activate`); otherwise, prefix them with `uv run`.
 
@@ -223,7 +242,7 @@ The case study consists of three files:
 | File | Content |
 |------|---------|
 | [`config/BoneStrengthML.yml`](config/BoneStrengthML.yml) | Pipeline configuration: dataset schema, models and hyperparameter grids, verification tests and thresholds |
-| `data/raw/sampleDataset.csv` | Dataset, versioned with DVC: git tracks the pointer `data/raw/sampleDataset.csv.dvc`, and `dvc pull` downloads the file |
+| `data/raw/sampleDataset.csv` | Dataset, versioned with DVC: git tracks the pointer `data/raw/sampleDataset.csv.dvc`, and the file is downloaded from the DVC remote (see [Getting the dataset](#getting-the-dataset)) |
 | [`docs/Context_of_use.md`](docs/Context_of_use.md) | Context of use of the surrogate, from which the acceptance and verification thresholds are derived |
 
 ## Applying the pipeline to another predictor
@@ -277,7 +296,7 @@ cmlops/                 # The pipeline
         tasks.py                # Prefect tasks
         flows.py                # Training and verification flows
 config/                 # Case-study configuration
-data/raw/               # Case-study dataset (DVC pointer; the file is downloaded with `dvc pull`)
+data/raw/               # Case-study dataset (DVC pointer; the file is downloaded from the DVC remote)
 .dvc/                   # DVC configuration
 docs/                   # Workflow architecture, deployment guide, case-study context of use
 notebooks/              # Data loading and validation demo
