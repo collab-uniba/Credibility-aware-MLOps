@@ -610,6 +610,9 @@ model_building:
     - type: CatBoostRegressor
       hyperparameters:
         thread_count: 1 # Single-threaded fit: parallelism is applied at the CV-search level (see workflows.flows)
+        verbose: 0 # No per-iteration output during training
+        allow_writing_files: false # No catboost_info/ files written during training
+        bootstrap_type: [Bayesian] # Required for bagging_temperature to take effect. One-element list: recorded with the best parameters and reused by the verification refits
         iterations: [100, 500, 1000, 1500, 2000, 2500, 3000, 5000]
         depth: [4, 6, 10]
         learning_rate: [0.01, 0.1, 0.3]
