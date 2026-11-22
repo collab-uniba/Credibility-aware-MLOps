@@ -538,10 +538,10 @@ verification:
       thresholds:
         - field: maxStrain_11
           metric: MaxStandardDeviation
-          value: 0.00089
+          value: 0.0000051
         - field: maxStrain_33
           metric: MaxStandardDeviation
-          value: 0.0020
+          value: 0.0000073
       parameters:
         sets: 10
     # - type: existence
