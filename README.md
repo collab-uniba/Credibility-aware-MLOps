@@ -129,7 +129,7 @@ Train all configured models for all outputs, then verify and register the winner
 cmlops train
 ```
 
-This is the run that reproduces the case study. It trains eight model types for two outputs with large hyperparameter grids, so it takes a long time.
+This is the run that reproduces the case study. It trains seven model types for two outputs with large hyperparameter grids, so it takes a long time.
 
 Train all models for one output, then verify and register the winner:
 
