@@ -523,6 +523,7 @@ verification:
           value: 0.05
       parameters:
         n_rows: [100, 250, 500, 1000]
+        lhs_samples: 1000000
     - type: smoothness
       thresholds:
         - field: maxStrain_11
@@ -534,6 +535,7 @@ verification:
       parameters:
         sample_fraction: 0.4
         perturbation_scaled_magnitude: 0.001
+        lhs_samples: 1000000
     - type: numerical_error
       thresholds:
         - field: maxStrain_11
@@ -544,6 +546,7 @@ verification:
           value: 0.0000073
       parameters:
         sets: 10
+        lhs_samples: 1000000
     # - type: existence
     #   thresholds: []
     #   parameters:
